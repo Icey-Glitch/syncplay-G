@@ -51,7 +51,7 @@
               go
               packages.default
               nil
-
+              tcpdump
               # goimports, godoc, etc.
               gotools
 
