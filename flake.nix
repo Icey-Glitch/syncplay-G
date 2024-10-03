@@ -51,6 +51,7 @@
               go
               packages.default
               nil
+              wireshark
               tcpdump
               # goimports, godoc, etc.
               gotools
