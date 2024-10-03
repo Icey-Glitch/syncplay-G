@@ -16,6 +16,9 @@
         overlays = [];
         pkgs = import nixpkgs {
           inherit system overlays;
+          config = {
+            allowUnfree = true;
+          };
         };
         extensions = nix-vscode-extensions.extensions.${system};
         inherit (pkgs) vscode-with-extensions vscodium;
@@ -53,6 +56,8 @@
               nil
               wireshark
               tcpdump
+
+              #jetbrains.goland
               # goimports, godoc, etc.
               gotools
 
