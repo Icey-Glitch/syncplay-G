@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 
+	"github.com/Icey-Glitch/Syncplay-G/ConMngr"
 	"github.com/Icey-Glitch/Syncplay-G/messages"
 	"github.com/Icey-Glitch/Syncplay-G/utils"
 )
@@ -46,7 +47,9 @@ func handleClient(conn net.Conn) {
 	for {
 		var msg map[string]interface{}
 		if err := decoder.Decode(&msg); err == io.EOF {
+			cm := ConMngr.GetConnectionManager()
 			fmt.Println("Client disconnected")
+			cm.RemoveConnection(conn)
 			return
 		} else if err != nil {
 			fmt.Println("Error decoding message:", err)
@@ -58,14 +61,6 @@ func handleClient(conn net.Conn) {
 			continue
 		}
 
-		jsonData, err := json.Marshal(msg)
-		if err != nil {
-			fmt.Println("Error marshaling message:", err)
-			return
-		}
-		fmt.Println("Received message:")
-		utils.PrettyPrintJSON(jsonData)
-
 		switch {
 		case msg["TLS"] != nil:
 			handleStartTLSMessage(conn)
@@ -73,6 +68,10 @@ func handleClient(conn net.Conn) {
 			handleHelloMessage(msg["Hello"], encoder, conn)
 		case msg["State"] != nil:
 			handleStateMessage(msg["State"], encoder, conn)
+		case msg["Chat"] != nil:
+			handleChatMessage(msg["Chat"], encoder, conn)
+		case msg["Set"] != nil:
+			messages.HandleReadyMessage(msg["Set"].(map[string]interface{}), conn)
 		default:
 			fmt.Println("Unknown message type")
 			fmt.Println("Message:", msg)
@@ -113,27 +112,18 @@ func handleHelloMessage(helloMsg interface{}, encoder *json.Encoder, conn net.Co
 
 	room := helloData["room"].(map[string]interface{})
 
+	cm := ConMngr.GetConnectionManager()
+	cm.AddConnection(username, nil, conn)
+
 	sendSessionInformation(conn, username)
 
 	response := messages.CreateHelloResponse(username, "1.7.3", room["name"].(string))
 
-	jsonData, err := json.Marshal(response)
-	if err != nil {
-		fmt.Println("Error marshaling Hello response:", err)
-		return
-	}
-
-	jsonData = utils.InsertSpaceAfterColons(jsonData)
-	jsonData = append(jsonData, '\n')
-
-	fmt.Printf("Sending Hello response: %s\n", jsonData)
-	if _, err := conn.Write(jsonData); err != nil {
-		fmt.Println("Error sending Hello response:", err)
-	}
+	utils.SendJSONMessage(conn, response)
 
 	messages.SendInitialState(conn, username)
 
-	utils.PrettyPrintJSON(jsonData)
+	//utils.PrettyPrintJSON(jsonData)
 }
 
 func handleStateMessage(stateMsg interface{}, encoder *json.Encoder, conn net.Conn) {
@@ -173,8 +163,24 @@ func handleStateMessage(stateMsg interface{}, encoder *json.Encoder, conn net.Co
 	messages.SendStateMessage(conn, position, paused, doSeek, latencyCalculation, stateChange)
 }
 
+func handleChatMessage(chatData interface{}, encoder *json.Encoder, conn net.Conn) {
+	cm := ConMngr.GetConnectionManager()
+	// chatData is expected to be a map with a "Chat" key
+	msg, ok := chatData.(string)
+	if !ok {
+		fmt.Println("Error decoding chat message: chatData is not a map")
+		fmt.Printf("chatData type: %T\n", chatData)
+		return
+	}
+
+	// Assuming chatStr is the actual chat message
+	username := cm.GetUsername(conn)
+
+	messages.SendChatMessage(msg, username)
+}
+
 func sendSessionInformation(conn net.Conn, username string) {
-	messages.SendReadyMessage(conn, username)
+	messages.SendReadyMessageInit(conn, username)
 	messages.SendPlaylistChangeMessage(conn)
 	messages.SendPlaylistIndexMessage(conn)
 }

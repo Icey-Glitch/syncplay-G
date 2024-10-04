@@ -22,6 +22,14 @@ type StateMessage struct {
 	} `json:"State"`
 }
 
+type UserState struct {
+	Position float64
+	Paused   bool
+	DoSeek   bool
+	SetBy    interface{}
+	state    StateMessage
+}
+
 func SendStateMessage(conn net.Conn, position, paused, doSeek, latencyCalculation, stateChange interface{}) {
 	stateMessage := StateMessage{}
 	stateMessage.State.Ping.LatencyCalculation = latencyCalculation.(float64)

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+
+	"github.com/Icey-Glitch/Syncplay-G/ConMngr"
 )
 
 // InsertSpaceAfterColons inserts a space after each colon in the JSON byte slice
@@ -31,12 +33,22 @@ func SendJSONMessage(conn net.Conn, message interface{}) {
 	}
 
 	jsonData = InsertSpaceAfterColons(jsonData)
-	jsonData = append(jsonData, '\n')
+	jsonData = append(jsonData, '\x0d', '\x0a')
 
-	if _, err := conn.Write(jsonData); err != nil {
+	// convert to byte slice and send
+	payload := []byte(jsonData)
+
+	if _, err := conn.Write(payload); err != nil {
 		fmt.Println("Error sending message:", err)
 	} else {
-		fmt.Printf("Sent message: %s\n", jsonData)
+		//fmt.Printf("Sent message: %s\n", payload)
+	}
+}
+
+func SendJSONMessageMultiCast(message interface{}) {
+	// send message to all connections
+	for _, connection := range ConMngr.GetConnectionManager().GetConnections() {
+		SendJSONMessage(connection.Conn, message)
 	}
 }
 

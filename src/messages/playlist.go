@@ -3,6 +3,7 @@ package messages
 import (
 	"net"
 
+	"github.com/Icey-Glitch/Syncplay-G/ConMngr"
 	"github.com/Icey-Glitch/Syncplay-G/utils"
 )
 
@@ -46,6 +47,7 @@ func SendPlaylistIndexMessage(conn net.Conn) {
 }
 
 func SendPlaylistChangeMessage(conn net.Conn) {
+	cm := ConMngr.GetConnectionManager()
 	playlistChangeMessage := PlaylistChangeMessage{
 		Set: struct {
 			PlaylistChange struct {
@@ -58,12 +60,12 @@ func SendPlaylistChangeMessage(conn net.Conn) {
 				User  interface{}   `json:"user"`
 			}{
 				Files: []interface{}{},
-				User:  nil,
+				User:  cm.GetUsername(conn),
 			},
 		},
 	}
 
-	utils.SendJSONMessage(conn, playlistChangeMessage)
+	utils.SendJSONMessageMultiCast(playlistChangeMessage)
 }
 
 func ExtractStatePlaystateArguments(playstate map[string]interface{}) (interface{}, interface{}, interface{}, interface{}) {
