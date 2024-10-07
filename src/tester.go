@@ -96,7 +96,6 @@ func startProxyServer(listenAddr, serverAddr string) {
 		go handleClientConnection(clientConn, serverAddr)
 	}
 }
-
 func main() {
 	listenAddr := flag.String("listen", ":8080", "Address to listen on")
 	serverAddr := flag.String("server", "localhost:12345", "Address of the real server")

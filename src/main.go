@@ -6,8 +6,8 @@ import (
 	"io"
 	"net"
 
-	"github.com/Icey-Glitch/Syncplay-G/ConMngr"
 	"github.com/Icey-Glitch/Syncplay-G/messages"
+	connM "github.com/Icey-Glitch/Syncplay-G/mngr/conn"
 	"github.com/Icey-Glitch/Syncplay-G/utils"
 )
 
@@ -47,13 +47,13 @@ func handleClient(conn net.Conn) {
 	for {
 		var msg map[string]interface{}
 		if err := decoder.Decode(&msg); err == io.EOF {
-			cm := ConMngr.GetConnectionManager()
+			cm := connM.GetConnectionManager()
 			fmt.Println("Client disconnected")
 			cm.RemoveConnection(conn)
 			return
 		} else if err != nil {
 			fmt.Println("Error decoding message:", err)
-			return
+			continue
 		}
 
 		if msg == nil {
@@ -71,7 +71,7 @@ func handleClient(conn net.Conn) {
 		case msg["Chat"] != nil:
 			handleChatMessage(msg["Chat"], encoder, conn)
 		case msg["Set"] != nil:
-			messages.HandleReadyMessage(msg["Set"].(map[string]interface{}), conn)
+			handleSetMessage(msg["Set"], conn)
 		default:
 			fmt.Println("Unknown message type")
 			fmt.Println("Message:", msg)
@@ -104,26 +104,64 @@ func handleHelloMessage(helloMsg interface{}, encoder *json.Encoder, conn net.Co
 		return
 	}
 
-	//version, ok := helloData["version"].(string)
+	room, ok := helloData["room"].(map[string]interface{})
 	if !ok {
-		fmt.Println("Error: version is not a string")
+		fmt.Println("Error: room is not a map")
 		return
 	}
 
-	room := helloData["room"].(map[string]interface{})
+	roomName, ok := room["name"].(string)
+	if !ok {
+		fmt.Println("Error: room name is not a string")
+		return
+	}
 
-	cm := ConMngr.GetConnectionManager()
-	cm.AddConnection(username, nil, conn)
+	cm := connM.GetConnectionManager()
+	if cm.GetRoom(roomName) == nil {
+		cm.CreateRoom(roomName)
+	}
 
-	sendSessionInformation(conn, username)
+	cm.AddConnection(username, roomName, nil, conn)
 
-	response := messages.CreateHelloResponse(username, "1.7.3", room["name"].(string))
+	sendSessionInformation(conn, username, roomName)
+
+	response := messages.CreateHelloResponse(username, "1.7.3", roomName)
 
 	utils.SendJSONMessage(conn, response)
 
 	messages.SendInitialState(conn, username)
+}
 
-	//utils.PrettyPrintJSON(jsonData)
+func handleSetMessage(setMsg interface{}, conn net.Conn) {
+	// Deserialize the set message
+	setData, ok := setMsg.(map[string]interface{})
+	if !ok {
+		fmt.Println("Error: Set message is not a map")
+		return
+	}
+
+	// Handle ready message
+	if ready, ok := setData["ready"].(map[string]interface{}); ok {
+		messages.HandleReadyMessage(ready, conn)
+	}
+
+	// Handle playlist change message
+	if playlistChange, ok := setData["playlistChange"].(map[string]interface{}); ok {
+		if playlistChange != nil {
+			messages.HandlePlaylistChangeMessage(conn, playlistChange)
+		} else {
+			fmt.Println("Error: playlistChange is nil")
+		}
+	}
+
+	// Handle playlist index message
+	if playlistIndex, ok := setData["playlistIndex"].(map[string]interface{}); ok {
+		if playlistIndex != nil {
+			messages.HandlePlaylistIndexMessage(conn, playlistIndex)
+		} else {
+			fmt.Println("Error: playlistIndex is nil")
+		}
+	}
 }
 
 func handleStateMessage(stateMsg interface{}, encoder *json.Encoder, conn net.Conn) {
@@ -148,7 +186,7 @@ func handleStateMessage(stateMsg interface{}, encoder *json.Encoder, conn net.Co
 	}
 
 	if playstate, ok := stateData["playstate"].(map[string]interface{}); ok {
-		position, paused, doSeek, setBy = messages.ExtractStatePlaystateArguments(playstate)
+		position, paused, doSeek, setBy = messages.ExtractStatePlaystateArguments(playstate, conn)
 	}
 
 	if ping, ok := stateData["ping"].(map[string]interface{}); ok {
@@ -164,7 +202,7 @@ func handleStateMessage(stateMsg interface{}, encoder *json.Encoder, conn net.Co
 }
 
 func handleChatMessage(chatData interface{}, encoder *json.Encoder, conn net.Conn) {
-	cm := ConMngr.GetConnectionManager()
+	cm := connM.GetConnectionManager()
 	// chatData is expected to be a map with a "Chat" key
 	msg, ok := chatData.(string)
 	if !ok {
@@ -174,13 +212,13 @@ func handleChatMessage(chatData interface{}, encoder *json.Encoder, conn net.Con
 	}
 
 	// Assuming chatStr is the actual chat message
-	username := cm.GetUsername(conn)
+	username := cm.GetRoomByConnection(conn).GetUsernameByConnection(conn)
 
 	messages.SendChatMessage(msg, username)
 }
 
-func sendSessionInformation(conn net.Conn, username string) {
+func sendSessionInformation(conn net.Conn, username, roomName string) {
 	messages.SendReadyMessageInit(conn, username)
-	messages.SendPlaylistChangeMessage(conn)
-	messages.SendPlaylistIndexMessage(conn)
+	messages.SendPlaylistChangeMessage(conn, roomName)
+	messages.SendPlaylistIndexMessage(conn, roomName)
 }

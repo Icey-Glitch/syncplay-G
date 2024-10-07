@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/Icey-Glitch/Syncplay-G/ConMngr"
+	connM "github.com/Icey-Glitch/Syncplay-G/mngr/conn"
 )
 
 // InsertSpaceAfterColons inserts a space after each colon in the JSON byte slice
@@ -32,7 +32,6 @@ func SendJSONMessage(conn net.Conn, message interface{}) {
 		return
 	}
 
-	jsonData = InsertSpaceAfterColons(jsonData)
 	jsonData = append(jsonData, '\x0d', '\x0a')
 
 	// convert to byte slice and send
@@ -45,11 +44,18 @@ func SendJSONMessage(conn net.Conn, message interface{}) {
 	}
 }
 
-func SendJSONMessageMultiCast(message interface{}) {
-	// send message to all connections
-	for _, connection := range ConMngr.GetConnectionManager().GetConnections() {
-		SendJSONMessage(connection.Conn, message)
+func SendJSONMessageMultiCast(message interface{}, roomName string) {
+	// send to all connections in the room
+	cm := connM.GetConnectionManager()
+	room := cm.GetRoom(roomName)
+	if room == nil {
+		return
 	}
+
+	for _, user := range room.Users {
+		SendJSONMessage(user.Conn, message)
+	}
+
 }
 
 // PrettyPrintJSON takes a JSON byte slice, formats it with indentation, and prints it to the console

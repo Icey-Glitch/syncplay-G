@@ -2,10 +2,10 @@ package messages
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
-	"sync"
 
-	"github.com/Icey-Glitch/Syncplay-G/ConMngr"
+	connM "github.com/Icey-Glitch/Syncplay-G/mngr/conn"
 	"github.com/Icey-Glitch/Syncplay-G/utils"
 )
 
@@ -20,24 +20,19 @@ type ReadyMessage struct {
 }
 
 type ClientReadyMessage struct {
-	Ready struct {
-		IsReady           bool `json:"isReady"`
-		ManuallyInitiated bool `json:"manuallyInitiated"`
-	} `json:"ready"`
-}
-
-type UserReadyState struct {
-	Username          string
-	IsReady           bool
-	ManuallyInitiated bool
-}
-
-type UserReadyMngr struct {
-	Users []*UserReadyState
-	mutex sync.Mutex
+	IsReady           bool `json:"isReady"`
+	ManuallyInitiated bool `json:"manuallyInitiated"`
 }
 
 func SendReadyMessageInit(conn net.Conn, username string) {
+	cm := connM.GetConnectionManager()
+	room := cm.GetRoomByConnection(conn)
+	if room == nil {
+		return
+	}
+
+	room.SetUserReadyState(username, false, false)
+
 	readyMessage := ReadyMessage{
 		Set: struct {
 			Ready struct {
@@ -58,27 +53,13 @@ func SendReadyMessageInit(conn net.Conn, username string) {
 		},
 	}
 
-	// pretty print
-
-	readyMessageBytes, _ := json.Marshal(readyMessage)
-	utils.PrettyPrintJSON(utils.InsertSpaceAfterColons(readyMessageBytes))
-	utils.SendJSONMessageMultiCast(readyMessage)
+	utils.SendJSONMessageMultiCast(readyMessage, room.Name)
 }
 
 func HandleReadyMessage(ready map[string]interface{}, conn net.Conn) {
-	readyMngr := UserReadyMngr{}
-	/*client {
-	      "ready": {
-	        "isReady": true,
-	        "manuallyInitiated": true
-	      }
-		}*/
-	//server {"Set": {"ready": {"username": "car1", "isReady": true, "manuallyInitiated": true}}}
-
-	// print the incoming message
-	cm := ConMngr.GetConnectionManager()
+	// Print the incoming message
+	cm := connM.GetConnectionManager()
 	readyBytes, _ := json.Marshal(ready)
-
 	utils.PrettyPrintJSON(utils.InsertSpaceAfterColons(readyBytes))
 
 	// Unmarshal the incoming JSON data into ClientReadyMessage struct
@@ -89,101 +70,43 @@ func HandleReadyMessage(ready map[string]interface{}, conn net.Conn) {
 		return
 	}
 
-	// extract the isReady and manuallyInitiated
-	isReady := clientReadyMessage.Ready.IsReady
-	manuallyInitiated := clientReadyMessage.Ready.ManuallyInitiated
+	// Extract the isReady and manuallyInitiated
+	isReady := clientReadyMessage.IsReady
+	manuallyInitiated := clientReadyMessage.ManuallyInitiated
+
+	// Get the room and user associated with the connection
+	room := cm.GetRoomByConnection(conn)
+	if room == nil {
+		fmt.Println("Error: Room not found for connection")
+		return
+	}
 
 	// Assuming username is extracted from the connection or another source
-	username := cm.GetUsername(conn)
-
-	readyMngr.mutex.Lock()
-
-	UserReadyState := UserReadyState{
-		Username:          username,
-		IsReady:           isReady,
-		ManuallyInitiated: manuallyInitiated,
+	username := room.GetUsernameByConnection(conn)
+	if username == "" {
+		fmt.Println("Error: Username not found for connection")
+		return
 	}
 
-	// check if user is already in the list
-	userIndex := findUser(username)
-	if userIndex != -1 {
-		// update user
-		readyMngr.Users[userIndex] = &UserReadyState
-	} else {
-		// add user
-		readyMngr.Users = append(readyMngr.Users, &UserReadyState)
-	}
+	// Set the user ready state
+	room.SetUserReadyState(username, isReady, manuallyInitiated)
 
-	readyMngr.mutex.Unlock()
-
-	// pretty print
-
-	utils.PrettyPrintJSON(utils.InsertSpaceAfterColons(readyBytes))
-
-	// build response
-	response := ReadyMessage{
-		Set: struct {
-			Ready struct {
-				Username          string `json:"username"`
-				IsReady           bool   `json:"isReady"`
-				ManuallyInitiated bool   `json:"manuallyInitiated"`
-			} `json:"ready"`
-		}{
-			Ready: struct {
-				Username          string `json:"username"`
-				IsReady           bool   `json:"isReady"`
-				ManuallyInitiated bool   `json:"manuallyInitiated"`
-			}{
-				Username:          username,
-				IsReady:           isReady,
-				ManuallyInitiated: manuallyInitiated,
+	// Send the ready message to all connections in the room
+	readyMessage := map[string]interface{}{
+		"Set": map[string]interface{}{
+			"ready": map[string]interface{}{
+				"username":          username,
+				"isReady":           isReady,
+				"manuallyInitiated": manuallyInitiated,
 			},
 		},
 	}
 
-	utils.SendJSONMessageMultiCast(response)
-}
+	room.PrintReadyStates()
 
-func getReadyState(username string) (bool, bool) {
-	readyMngr := UserReadyMngr{}
-	readyMngr.mutex.Lock()
-	defer readyMngr.mutex.Unlock()
+	// Pretty print the ready message
+	readyMessageBytes, _ := json.Marshal(readyMessage)
+	utils.PrettyPrintJSON(utils.InsertSpaceAfterColons(readyMessageBytes))
 
-	if readyMngr.Users == nil {
-		return false, false
-	}
-
-	if len(readyMngr.Users) == 0 {
-		return false, false
-	}
-
-	for _, user := range readyMngr.Users {
-		if user.Username == username {
-			return user.IsReady, user.ManuallyInitiated
-		}
-	}
-
-	return false, false
-}
-
-func findUser(username string) int {
-	readyMngr := UserReadyMngr{}
-	readyMngr.mutex.Lock()
-	defer readyMngr.mutex.Unlock()
-
-	if readyMngr.Users == nil {
-		return -1
-	}
-
-	if len(readyMngr.Users) == 0 {
-		return -1
-	}
-
-	for i, user := range readyMngr.Users {
-		if user.Username == username {
-			return i
-		}
-	}
-
-	return -1
+	utils.SendJSONMessageMultiCast(readyMessage, room.Name)
 }

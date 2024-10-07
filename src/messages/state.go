@@ -4,6 +4,7 @@ import (
 	"net"
 	"time"
 
+	connM "github.com/Icey-Glitch/Syncplay-G/mngr/conn"
 	"github.com/Icey-Glitch/Syncplay-G/utils"
 )
 
@@ -31,15 +32,21 @@ type UserState struct {
 }
 
 func SendStateMessage(conn net.Conn, position, paused, doSeek, latencyCalculation, stateChange interface{}) {
+	cm := connM.GetConnectionManager()
+	room := cm.GetRoomByConnection(conn)
+	if room == nil {
+		return
+	}
+
 	stateMessage := StateMessage{}
 	stateMessage.State.Ping.LatencyCalculation = latencyCalculation.(float64)
 	stateMessage.State.Ping.ServerRtt = 0
-	stateMessage.State.Playstate.DoSeek = doSeek.(bool)
 	stateMessage.State.Playstate.Position = position.(float64)
 	stateMessage.State.Playstate.Paused = paused.(bool)
+	stateMessage.State.Playstate.DoSeek = doSeek.(bool)
 	stateMessage.State.Playstate.SetBy = stateChange
 
-	utils.SendJSONMessage(conn, stateMessage)
+	utils.SendJSONMessageMultiCast(stateMessage, room.Name)
 }
 
 func SendInitialState(conn net.Conn, username string) {

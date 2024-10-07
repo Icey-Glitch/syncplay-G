@@ -1,17 +1,19 @@
 package messages
 
 import (
+	"fmt"
 	"net"
+	"strings"
 
-	"github.com/Icey-Glitch/Syncplay-G/ConMngr"
+	connM "github.com/Icey-Glitch/Syncplay-G/mngr/conn"
 	"github.com/Icey-Glitch/Syncplay-G/utils"
 )
 
 type PlaylistChangeMessage struct {
 	Set struct {
 		PlaylistChange struct {
-			Files []interface{} `json:"files"`
 			User  interface{}   `json:"user"`
+			Files []interface{} `json:"files"`
 		} `json:"playlistChange"`
 	} `json:"Set"`
 }
@@ -25,50 +27,81 @@ type PlaylistIndexMessage struct {
 	} `json:"Set"`
 }
 
-func SendPlaylistIndexMessage(conn net.Conn) {
-	playlistIndexMessage := PlaylistIndexMessage{
-		Set: struct {
-			PlaylistIndex struct {
-				Index interface{} `json:"index"`
-				User  interface{} `json:"user"`
-			} `json:"playlistIndex"`
-		}{
-			PlaylistIndex: struct {
-				Index interface{} `json:"index"`
-				User  interface{} `json:"user"`
-			}{
-				Index: nil,
-				User:  nil,
-			},
-		},
+// handle
+func HandlePlaylistIndexMessage(conn net.Conn, playlistIndex map[string]interface{}) {
+	cm := connM.GetConnectionManager()
+	room := cm.GetRoomByConnection(conn)
+	if room == nil {
+		return
 	}
 
-	utils.SendJSONMessage(conn, playlistIndexMessage)
-}
+	playlistObject := room.PlaylistManager.GetPlaylist()
 
-func SendPlaylistChangeMessage(conn net.Conn) {
-	cm := ConMngr.GetConnectionManager()
-	playlistChangeMessage := PlaylistChangeMessage{
-		Set: struct {
-			PlaylistChange struct {
-				Files []interface{} `json:"files"`
-				User  interface{}   `json:"user"`
-			} `json:"playlistChange"`
-		}{
-			PlaylistChange: struct {
-				Files []interface{} `json:"files"`
-				User  interface{}   `json:"user"`
-			}{
-				Files: []interface{}{},
-				User:  cm.GetUsername(conn),
-			},
-		},
+	if playlistObject.User.Username != "" {
+		// check if the user is the same as the one who sent the message
+		if playlistObject.User.Username != room.GetUsernameByConnection(conn) {
+			return
+		}
 	}
 
-	utils.SendJSONMessageMultiCast(playlistChangeMessage)
+	index := playlistIndex["index"]
+
+	if index != nil {
+		playlistObject.Index = index.(float64)
+	} else {
+		playlistObject.Index = 0
+	}
+
+	playlistObject.User.Username = room.GetUsernameByConnection(conn)
+
+	room.PlaylistManager.SetPlaylist(playlistObject)
+
+	SendPlaylistIndexMessage(conn, room.Name)
 }
 
-func ExtractStatePlaystateArguments(playstate map[string]interface{}) (interface{}, interface{}, interface{}, interface{}) {
+func HandlePlaylistChangeMessage(conn net.Conn, playlistChange map[string]interface{}) {
+	// client {"Set": {"playlistChange": {"files": ["https://www.youtube.com/watch?v=0TVdTvWzr-A"]}}}
+	// server {"Set": {"playlistChange": {"user": "icey", "files": ["https://www.youtube.com/watch?v=0TVdTvWzr-A"]}}}
+	cm := connM.GetConnectionManager()
+	room := cm.GetRoomByConnection(conn)
+	if room == nil {
+		return
+	}
+
+	PlaylistObject := room.PlaylistManager.GetPlaylist()
+
+	fmt.Println("playlistChange: ", playlistChange) // map[files:[https://www.youtube.com/watch?v=0TVdTvWzr-A]]
+
+	files, ok := playlistChange["files"].([]interface{})
+	if !ok || files == nil {
+		fmt.Println("Error: files is nil or not a slice of interfaces")
+		return
+	}
+
+	// Sanitize URLs
+	for i, file := range files {
+		if url, ok := file.(string); ok {
+			files[i] = strings.TrimSpace(url)
+			fmt.Println("Sanitized URL: ", files[i])
+		}
+	}
+
+	PlaylistObject.Files = files
+	PlaylistObject.User.Username = room.GetUsernameByConnection(conn)
+
+	room.PlaylistManager.SetPlaylist(PlaylistObject)
+
+	SendPlaylistChangeMessage(conn, room.Name)
+}
+
+// extract
+func ExtractStatePlaystateArguments(playstate map[string]interface{}, conn net.Conn) (interface{}, interface{}, interface{}, interface{}) {
+	cm := connM.GetConnectionManager()
+	room := cm.GetRoomByConnection(conn)
+	if room == nil {
+		return nil, nil, nil, nil
+	}
+
 	position, ok := playstate["position"].(float64)
 	if !ok {
 		position = 0
@@ -85,6 +118,97 @@ func ExtractStatePlaystateArguments(playstate map[string]interface{}) (interface
 	}
 
 	setBy := playstate["setBy"]
+	if setBy == nil {
+		setBy = room.GetUsernameByConnection(conn)
+	}
+
+	// store the user's playstate
+	room.PlaylistManager.SetUserPlaystate(room.GetUsernameByConnection(conn), int(position), paused, doSeek, setBy.(string))
 
 	return position, paused, doSeek, setBy
+}
+
+// send
+
+func SendPlaylistIndexMessage(conn net.Conn, roomName string) {
+	cm := connM.GetConnectionManager()
+	room := cm.GetRoom(roomName)
+
+	if room == nil {
+		return
+	}
+
+	PlaylistObject := room.PlaylistManager.GetPlaylist()
+
+	if PlaylistObject.User.Username == "" || len(PlaylistObject.Files) == 0 {
+		playlistIndexMessage := PlaylistIndexMessage{
+			Set: struct {
+				PlaylistIndex struct {
+					Index interface{} `json:"index"`
+					User  interface{} `json:"user"`
+				} `json:"playlistIndex"`
+			}{
+				PlaylistIndex: struct {
+					Index interface{} `json:"index"`
+					User  interface{} `json:"user"`
+				}{
+					Index: PlaylistObject.Index,
+					User:  PlaylistObject.User.Username,
+				},
+			},
+		}
+
+		utils.SendJSONMessageMultiCast(playlistIndexMessage, roomName)
+	} else {
+		playlistIndexMessage := PlaylistIndexMessage{
+			Set: struct {
+				PlaylistIndex struct {
+					Index interface{} `json:"index"`
+					User  interface{} `json:"user"`
+				} `json:"playlistIndex"`
+			}{
+				PlaylistIndex: struct {
+					Index interface{} `json:"index"`
+					User  interface{} `json:"user"`
+				}{
+					Index: nil,
+					User:  nil,
+				},
+			},
+		}
+
+		utils.SendJSONMessageMultiCast(playlistIndexMessage, roomName)
+	}
+
+}
+
+func SendPlaylistChangeMessage(conn net.Conn, roomName string) {
+	cm := connM.GetConnectionManager()
+	room := cm.GetRoom(roomName)
+
+	if room == nil {
+		return
+	}
+	PlaylistObject := room.PlaylistManager.GetPlaylist()
+
+	fmt.Println("PlaylistObject: ", PlaylistObject)
+
+	playlistChangeMessage := PlaylistChangeMessage{
+		Set: struct {
+			PlaylistChange struct {
+				User  interface{}   `json:"user"`
+				Files []interface{} `json:"files"`
+			} `json:"playlistChange"`
+		}{
+			PlaylistChange: struct {
+				User  interface{}   `json:"user"`
+				Files []interface{} `json:"files"`
+			}{
+				Files: PlaylistObject.Files,
+				User:  PlaylistObject.User.Username,
+			},
+		},
+	}
+
+	utils.SendJSONMessageMultiCast(playlistChangeMessage, roomName)
 }

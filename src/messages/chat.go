@@ -3,6 +3,7 @@ package messages
 import (
 	"encoding/json"
 
+	connM "github.com/Icey-Glitch/Syncplay-G/mngr/conn"
 	"github.com/Icey-Glitch/Syncplay-G/utils"
 )
 
@@ -17,11 +18,12 @@ type ChatMessage struct {
 }
 
 func SendChatMessage(message, username string) {
+	room := connM.GetConnectionManager().GetRoomByUsername(username)
 	chatMessage := ChatMessage{}
 	chatMessage.Chat.Message = message
 	chatMessage.Chat.Username = username
 
 	chatBytes, _ := json.Marshal(chatMessage)
 	utils.PrettyPrintJSON(utils.InsertSpaceAfterColons(chatBytes))
-	utils.SendJSONMessageMultiCast(chatMessage)
+	utils.SendJSONMessageMultiCast(chatMessage, room.Name)
 }
