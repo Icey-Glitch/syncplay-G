@@ -21,14 +21,14 @@ type RoomPlaylistState struct {
 }
 
 type user struct {
-	position int
-	paused   bool
-	setBy    string
-	doSeek   bool
+	Position int
+	Paused   bool
+	SetBy    string
+	DoSeek   bool
 
-	duration float32
-	name     string
-	size     int
+	Duration float64
+	Name     string
+	Size     float64
 }
 
 func NewPlaylistManager() *PlaylistManager {
@@ -63,15 +63,15 @@ func (pm *PlaylistManager) SetUserPlaystate(username string, position int, pause
 	}
 
 	pm.playlist.Users[username] = user{
-		position: position,
-		paused:   paused,
-		doSeek:   doSeek,
-		setBy:    setBy,
+		Position: position,
+		Paused:   paused,
+		DoSeek:   doSeek,
+		SetBy:    setBy,
 	}
 }
 
 // SetUserFile
-func (pm *PlaylistManager) SetUserFile(username string, duration float32, name string, size int) {
+func (pm *PlaylistManager) SetUserFile(username string, duration float64, name string, size float64) {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
@@ -79,9 +79,9 @@ func (pm *PlaylistManager) SetUserFile(username string, duration float32, name s
 	pm.playlist.User.connection = nil
 
 	pm.playlist.Users[username] = user{
-		duration: float32(duration),
-		name:     name,
-		size:     size,
+		Duration: duration,
+		Name:     name,
+		Size:     size,
 	}
 
 }
@@ -94,9 +94,26 @@ func (pm *PlaylistManager) GetUserPlaystate(username string) (user, bool) {
 	return state, exists
 }
 
+// get User object
+func (pm *PlaylistManager) GetUserObject(username string) (user, bool) {
+	pm.mutex.RLock()
+	defer pm.mutex.RUnlock()
+
+	state, exists := pm.playlist.Users[username]
+	return state, exists
+}
+
 func (pm *PlaylistManager) RemoveUserPlaystate(username string) {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
 	delete(pm.playlist.Users, username)
+}
+
+// User state list for list message
+func (pm *PlaylistManager) GetUserStates() map[string]user {
+	pm.mutex.RLock()
+	defer pm.mutex.RUnlock()
+
+	return pm.playlist.Users
 }

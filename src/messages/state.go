@@ -46,6 +46,15 @@ func SendStateMessage(conn net.Conn, position, paused, doSeek, latencyCalculatio
 	stateMessage.State.Playstate.DoSeek = doSeek.(bool)
 	stateMessage.State.Playstate.SetBy = stateChange
 
+	room.RoomState.Position = position.(float64)
+	room.RoomState.IsPaused = paused.(bool)
+
+	// update the room's state
+	room.RoomState.Position = position.(float64)
+	room.RoomState.IsPaused = paused.(bool)
+
+	// send the state message to all users in the room
+
 	utils.SendJSONMessage(conn, stateMessage)
 }
 

@@ -216,6 +216,10 @@ func SendPlaylistChangeMessage(conn net.Conn, roomName string) {
 func HandleFileMessage(conn net.Conn, file map[string]interface{}) {
 	// Client >> {"Set": {"file": {"duration": 596.458, "name": "BigBuckBunny.avi", "size": 220514438}}}
 	// Server (to all who can see room) << {"Set": {"user": {"Bob": {"room": {"name": "SyncRoom"}, "file": {"duration": 596.458, "name": "BigBuckBunny.avi", "size": "220514438"}}}}}
+
+	// Client >> {"Set": {"file": {"duration": 596.0, "name": "6fa13ad43fea", "size": "44657bd3c1bd"}}}
+	// Server (to all who can see room) << {"Set": {"user": {"Bob": {"room": {"name": "6fa13ad43fea"}, "file": {"duration": 596.458, "name": "6fa13ad43fea", "size": "44657bd3c1bd"}}}}}
+
 	cm := connM.GetConnectionManager()
 	room := cm.GetRoomByConnection(conn)
 	if room == nil {
@@ -223,6 +227,8 @@ func HandleFileMessage(conn net.Conn, file map[string]interface{}) {
 	}
 
 	roomName := room.Name
+
+	// desern communication type: raw, hashed, or not sent
 
 	// extract the file data
 	duration := file["duration"]
@@ -236,7 +242,7 @@ func HandleFileMessage(conn net.Conn, file map[string]interface{}) {
 	}
 
 	// store the user data
-	room.PlaylistManager.SetUserFile(room.GetUsernameByConnection(conn), duration.(float32), name.(string), size.(int))
+	room.PlaylistManager.SetUserFile(room.GetUsernameByConnection(conn), duration.(float64), name.(string), size.(float64))
 
 	// create the file message
 	fileMessage := map[string]interface{}{

@@ -75,6 +75,9 @@ func handleClient(conn net.Conn) {
 			handleChatMessage(msg["Chat"], encoder, conn)
 		case msg["Set"] != nil:
 			handleSetMessage(msg["Set"], conn)
+		case msg["List"] == nil:
+			// map[list:nil]
+			messages.HandleListRequest(conn, connM.GetConnectionManager().GetRoomByConnection(conn))
 		default:
 			fmt.Println("Unknown message type")
 			fmt.Println("Message:", msg)

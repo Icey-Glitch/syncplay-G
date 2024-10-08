@@ -58,7 +58,7 @@
               tcpdump
               tmux
 
-              #jetbrains.goland
+              jetbrains.goland
               # goimports, godoc, etc.
               gotools
 
