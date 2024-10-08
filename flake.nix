@@ -56,6 +56,7 @@
               nil
               wireshark
               tcpdump
+              tmux
 
               #jetbrains.goland
               # goimports, godoc, etc.

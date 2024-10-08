@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	ln, err := net.Listen("tcp", ":12345")
+	ln, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		fmt.Println("Error starting server:", err)
 		return
@@ -23,6 +23,8 @@ func main() {
 			fmt.Println("Error closing listener:", err)
 		}
 	}(ln)
+
+	// Start a goroutine for the interactive shell
 
 	for {
 		conn, err := ln.Accept()
@@ -41,6 +43,7 @@ func handleClient(conn net.Conn) {
 			fmt.Println("Error closing connection:", err)
 		}
 	}(conn)
+
 	decoder := json.NewDecoder(conn)
 	encoder := json.NewEncoder(conn)
 
@@ -140,6 +143,17 @@ func handleSetMessage(setMsg interface{}, conn net.Conn) {
 		return
 	}
 
+	fmt.Println("Set message:", setData)
+	// Handle user joining room
+	if user, ok := setData["user"].(map[string]interface{}); ok {
+		if user != nil {
+
+			messages.HandleJoinMessage(conn, user)
+		} else {
+			fmt.Println("Error: user is nil")
+		}
+	}
+
 	// Handle ready message
 	if ready, ok := setData["ready"].(map[string]interface{}); ok {
 		messages.HandleReadyMessage(ready, conn)
@@ -160,6 +174,15 @@ func handleSetMessage(setMsg interface{}, conn net.Conn) {
 			messages.HandlePlaylistIndexMessage(conn, playlistIndex)
 		} else {
 			fmt.Println("Error: playlistIndex is nil")
+		}
+	}
+
+	// handle file message
+	if file, ok := setData["file"].(map[string]interface{}); ok {
+		if file != nil {
+			messages.HandleFileMessage(conn, file)
+		} else {
+			fmt.Println("Error: file is nil")
 		}
 	}
 }

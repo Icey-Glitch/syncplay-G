@@ -1,6 +1,7 @@
 package roomM
 
 import (
+	"fmt"
 	"net"
 	"sync"
 
@@ -22,6 +23,14 @@ type Room struct {
 	ReadyManager    *ready.ReadyManager
 	PlaylistManager *playlistsM.PlaylistManager
 	mutex           sync.RWMutex
+
+	RoomState roomState
+}
+
+type roomState struct {
+	IsPaused bool    `json:"isPaused"`
+	Position float64 `json:"position"`
+	setBy    string
 }
 
 func NewRoom(name string) *Room {
@@ -99,21 +108,21 @@ func (r *Room) RemoveConnection(conn net.Conn) {
 	}
 }
 
+// list rooms
+func ListRooms(rooms map[string]*Room) []string {
+	roomNames := make([]string, 0)
+	for roomName := range rooms {
+		roomNames = append(roomNames, roomName)
+	}
+	return roomNames
+}
+
 // ready state
 func (r *Room) SetUserReadyState(username string, isReady bool, manuallyInitiated bool) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	for _, user := range r.Users {
-		if user.Username == username {
-			user.readyState = ready.ReadyState{
-				Username:          username,
-				IsReady:           isReady,
-				ManuallyInitiated: manuallyInitiated,
-			}
-			break
-		}
-	}
+	r.ReadyManager.SetUserReadyState(username, isReady, manuallyInitiated)
 }
 
 // print all ready states
@@ -124,7 +133,7 @@ func (r *Room) PrintReadyStates() {
 	for _, connection := range r.Users {
 		state, exists := r.ReadyManager.GetUserReadyState(connection.Username)
 		if exists {
-			println("Username: ", state.Username, " IsReady: ", state.IsReady, " ManuallyInitiated: ", state.ManuallyInitiated)
+			fmt.Printf("Username: %s, IsReady: %t, ManuallyInitiated: %t\n", state.Username, state.IsReady, state.ManuallyInitiated)
 		}
 	}
 }
@@ -148,4 +157,20 @@ func (r *Room) GetUserPlaystate(username string) (interface{}, bool) {
 	defer r.mutex.RUnlock()
 
 	return r.PlaylistManager.GetUserPlaystate(username)
+}
+
+// room state
+func (r *Room) GetRoomState() roomState {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	return r.RoomState
+}
+
+func (r *Room) SetRoomState(state roomState) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	r.RoomState = state
+
 }

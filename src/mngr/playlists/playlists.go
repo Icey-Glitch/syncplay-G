@@ -25,6 +25,10 @@ type user struct {
 	paused   bool
 	setBy    string
 	doSeek   bool
+
+	duration float32
+	name     string
+	size     int
 }
 
 func NewPlaylistManager() *PlaylistManager {
@@ -64,6 +68,22 @@ func (pm *PlaylistManager) SetUserPlaystate(username string, position int, pause
 		doSeek:   doSeek,
 		setBy:    setBy,
 	}
+}
+
+// SetUserFile
+func (pm *PlaylistManager) SetUserFile(username string, duration float32, name string, size int) {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+
+	pm.playlist.User.Username = username
+	pm.playlist.User.connection = nil
+
+	pm.playlist.Users[username] = user{
+		duration: float32(duration),
+		name:     name,
+		size:     size,
+	}
+
 }
 
 func (pm *PlaylistManager) GetUserPlaystate(username string) (user, bool) {

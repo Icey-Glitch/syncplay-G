@@ -212,3 +212,51 @@ func SendPlaylistChangeMessage(conn net.Conn, roomName string) {
 
 	utils.SendJSONMessageMultiCast(playlistChangeMessage, roomName)
 }
+
+func HandleFileMessage(conn net.Conn, file map[string]interface{}) {
+	// Client >> {"Set": {"file": {"duration": 596.458, "name": "BigBuckBunny.avi", "size": 220514438}}}
+	// Server (to all who can see room) << {"Set": {"user": {"Bob": {"room": {"name": "SyncRoom"}, "file": {"duration": 596.458, "name": "BigBuckBunny.avi", "size": "220514438"}}}}}
+	cm := connM.GetConnectionManager()
+	room := cm.GetRoomByConnection(conn)
+	if room == nil {
+		return
+	}
+
+	roomName := room.Name
+
+	// extract the file data
+	duration := file["duration"]
+	name := file["name"]
+	size := file["size"]
+
+	// check if the file data is valid
+	if duration == nil || name == nil || size == nil {
+		fmt.Println("Error: file data is invalid")
+		return
+	}
+
+	// store the user data
+	room.PlaylistManager.SetUserFile(room.GetUsernameByConnection(conn), duration.(float32), name.(string), size.(int))
+
+	// create the file message
+	fileMessage := map[string]interface{}{
+		"Set": map[string]interface{}{
+			"user": map[string]interface{}{
+				room.GetUsernameByConnection(conn): map[string]interface{}{
+					"room": map[string]interface{}{
+						"name": roomName,
+					},
+					"file": map[string]interface{}{
+						"duration": duration,
+						"name":     name,
+						"size":     size,
+					},
+				},
+			},
+		},
+	}
+
+	// send the file message to all connections in the room
+	utils.SendJSONMessageMultiCast(fileMessage, roomName)
+
+}

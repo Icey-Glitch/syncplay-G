@@ -46,19 +46,42 @@ func SendStateMessage(conn net.Conn, position, paused, doSeek, latencyCalculatio
 	stateMessage.State.Playstate.DoSeek = doSeek.(bool)
 	stateMessage.State.Playstate.SetBy = stateChange
 
-	utils.SendJSONMessageMultiCast(stateMessage, room.Name)
+	utils.SendJSONMessage(conn, stateMessage)
 }
 
 func SendInitialState(conn net.Conn, username string) {
+	// check if the room exists
+	cm := connM.GetConnectionManager()
+	room := cm.GetRoomByConnection(conn)
+	if room == nil {
+		return
+	}
+
+	// check if the room is empty
+	if len(room.Users) == 0 {
+		stateMessage := StateMessage{}
+		stateMessage.State.Ping.LatencyCalculation = float64(time.Now().UnixNano()) / 1e9 // Convert to seconds
+		stateMessage.State.Ping.ServerRtt = 0
+		stateMessage.State.Playstate.DoSeek = false
+		stateMessage.State.Playstate.Position = 0
+		stateMessage.State.Playstate.Paused = true
+		stateMessage.State.Playstate.SetBy = "Nobody" // Initial state, set by "Nobody"
+
+		utils.SendJSONMessage(conn, stateMessage)
+		return
+	}
+
+	// get the room's state
+	roomState := room.RoomState
 	stateMessage := StateMessage{}
 	stateMessage.State.Ping.LatencyCalculation = float64(time.Now().UnixNano()) / 1e9 // Convert to seconds
 	stateMessage.State.Ping.ServerRtt = 0
 	stateMessage.State.Playstate.DoSeek = false
-	stateMessage.State.Playstate.Position = 0
-	stateMessage.State.Playstate.Paused = true
-	stateMessage.State.Playstate.SetBy = nil // Initial state, no user set it
+	stateMessage.State.Playstate.Position = roomState.Position
+	stateMessage.State.Playstate.Paused = roomState.IsPaused
 
 	utils.SendJSONMessage(conn, stateMessage)
+
 }
 
 func HandleStatePing(ping map[string]interface{}) (float64, float64) {
@@ -70,6 +93,7 @@ func HandleStatePing(ping map[string]interface{}) (float64, float64) {
 	if !ok {
 		latencyCalculation = 0
 	}
+
 	return messageAge, latencyCalculation
 }
 

@@ -108,5 +108,7 @@ func HandleReadyMessage(ready map[string]interface{}, conn net.Conn) {
 	readyMessageBytes, _ := json.Marshal(readyMessage)
 	utils.PrettyPrintJSON(utils.InsertSpaceAfterColons(readyMessageBytes))
 
+	// Send the ready message to all connections in the room
+
 	utils.SendJSONMessageMultiCast(readyMessage, room.Name)
 }
