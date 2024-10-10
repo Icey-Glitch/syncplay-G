@@ -1,8 +1,6 @@
 package messages
 
 import (
-	"encoding/json"
-	"fmt"
 	"net"
 
 	roomM "github.com/Icey-Glitch/Syncplay-G/mngr/room"
@@ -69,15 +67,7 @@ func HandleListRequest(conn net.Conn, room *roomM.Room) {
 		},
 	}
 
-	// Convert the response to JSON
-	response, err := json.Marshal(listResponse)
-	if err != nil {
-		fmt.Println("Error marshalling list response:", err)
-		return
-	}
-
 	// Send the response
 	utils.SendJSONMessage(conn, listResponse)
 
-	fmt.Println("List response sent" + string(response))
 }

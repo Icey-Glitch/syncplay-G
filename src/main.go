@@ -1,21 +1,36 @@
 package main
 
 import (
-	"encoding/json"
+	"bufio"
 	"fmt"
 	"io"
+	"log"
 	"net"
+	"sync"
+	"time"
+
+	"github.com/goccy/go-json"
 
 	"github.com/Icey-Glitch/Syncplay-G/messages"
 	connM "github.com/Icey-Glitch/Syncplay-G/mngr/conn"
 	"github.com/Icey-Glitch/Syncplay-G/utils"
 )
 
+var (
+	connPool = sync.Pool{
+		New: func() interface{} {
+			var conn net.Conn
+			return &conn
+		},
+	}
+	maxWorkers = 100 // limit concurrent goroutines
+	workerPool = make(chan struct{}, maxWorkers)
+)
+
 func main() {
 	ln, err := net.Listen("tcp", ":8080")
 	if err != nil {
-		fmt.Println("Error starting server:", err)
-		return
+		log.Fatal("Error starting server:", err)
 	}
 	defer func(ln net.Listener) {
 		err := ln.Close()
@@ -24,28 +39,34 @@ func main() {
 		}
 	}(ln)
 
-	// Start a goroutine for the interactive shell
-
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
 			fmt.Println("Error accepting connection:", err)
 			continue
 		}
+
 		go handleClient(conn)
 	}
 }
 
 func handleClient(conn net.Conn) {
+	workerPool <- struct{}{} // limit goroutines
 	defer func(conn net.Conn) {
 		err := conn.Close()
 		if err != nil {
 			fmt.Println("Error closing connection:", err)
 		}
+		<-workerPool // release worker
 	}(conn)
 
-	decoder := json.NewDecoder(conn)
-	encoder := json.NewEncoder(conn)
+	// Set a timeout to avoid stale connections
+	conn.SetDeadline(time.Now().Add(time.Minute * 5))
+
+	reader := bufio.NewReader(conn)
+	writer := bufio.NewWriter(conn)
+	decoder := json.NewDecoder(reader)
+	encoder := json.NewEncoder(writer)
 
 	for {
 		var msg map[string]interface{}
@@ -76,7 +97,6 @@ func handleClient(conn net.Conn) {
 		case msg["Set"] != nil:
 			handleSetMessage(msg["Set"], conn)
 		case msg["List"] == nil:
-			// map[list:nil]
 			messages.HandleListRequest(conn, connM.GetConnectionManager().GetRoomByConnection(conn))
 		default:
 			fmt.Println("Unknown message type")
@@ -91,7 +111,7 @@ func handleStartTLSMessage(conn net.Conn) {
 		0x4c, 0x53, 0x22, 0x3a, 0x20, 0x22, 0x66, 0x61, 0x6c, 0x73, 0x65, 0x22, 0x7d, 0x7d, 0x0d, 0x0a,
 	}
 
-	fmt.Printf("Sending StartTLS response: %x\n", payload)
+	fmt.Println("Sending StartTLS response: %x", payload)
 	if _, err := conn.Write(payload); err != nil {
 		fmt.Println("Error sending StartTLS response:", err)
 	}
@@ -100,7 +120,7 @@ func handleStartTLSMessage(conn net.Conn) {
 func handleHelloMessage(helloMsg interface{}, encoder *json.Encoder, conn net.Conn) {
 	helloData, ok := helloMsg.(map[string]interface{})
 	if !ok {
-		fmt.Printf("Error: room is not a map, got: %T\n", helloData["room"])
+		fmt.Println("Error: room is not a map, got: %T", helloData["room"])
 		return
 	}
 
@@ -132,7 +152,6 @@ func handleHelloMessage(helloMsg interface{}, encoder *json.Encoder, conn net.Co
 	sendSessionInformation(conn, username, roomName)
 
 	response := messages.CreateHelloResponse(username, "1.7.3", roomName)
-
 	utils.SendJSONMessage(conn, response)
 
 	messages.SendInitialState(conn, username)
@@ -229,17 +248,13 @@ func handleStateMessage(stateMsg interface{}, encoder *json.Encoder, conn net.Co
 
 func handleChatMessage(chatData interface{}, encoder *json.Encoder, conn net.Conn) {
 	cm := connM.GetConnectionManager()
-	// chatData is expected to be a map with a "Chat" key
 	msg, ok := chatData.(string)
 	if !ok {
-		fmt.Println("Error decoding chat message: chatData is not a map")
-		fmt.Printf("chatData type: %T\n", chatData)
+		fmt.Println("Error decoding chat message: chatData is not a string")
 		return
 	}
 
-	// Assuming chatStr is the actual chat message
 	username := cm.GetRoomByConnection(conn).GetUsernameByConnection(conn)
-
 	messages.SendChatMessage(msg, username)
 }
 

@@ -1,7 +1,6 @@
 package messages
 
 import (
-	"encoding/json"
 	"net"
 
 	connM "github.com/Icey-Glitch/Syncplay-G/mngr/conn"
@@ -13,8 +12,6 @@ func HandleJoinMessage(conn net.Conn, msg map[string]interface{}) {
 	// {"Set": {"user": {"Bob": {"room": {"name": "SyncRoom"}, "event": {"joined": true}}}}}
 
 	// print the incoming message
-	chatBytes, _ := json.Marshal(msg)
-	utils.PrettyPrintJSON(utils.InsertSpaceAfterColons(chatBytes))
 
 	cm := connM.GetConnectionManager()
 	roomName := msg["room"].(string)
@@ -50,10 +47,6 @@ func broadcastJoinAnnouncement(username, roomName string, cm *connM.ConnectionMa
 		},
 	}
 	utils.SendJSONMessageMultiCast(announcement, cm.GetRoom(roomName).Name)
-
-	// pritty print the message
-	chatBytes, _ := json.Marshal(announcement)
-	utils.PrettyPrintJSON(utils.InsertSpaceAfterColons(chatBytes))
 
 	return nil
 }

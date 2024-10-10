@@ -58,6 +58,15 @@
               tcpdump
               tmux
 
+              # Development Tools
+              hotspot
+              pprof
+              gperftools
+              graphviz
+              perf_data_converter
+
+              linuxKernel.packages.linux_6_11.perf
+
               jetbrains.goland
               # goimports, godoc, etc.
               gotools

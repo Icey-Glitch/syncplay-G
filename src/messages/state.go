@@ -28,7 +28,6 @@ type UserState struct {
 	Paused   bool
 	DoSeek   bool
 	SetBy    interface{}
-	state    StateMessage
 }
 
 func SendStateMessage(conn net.Conn, position, paused, doSeek, latencyCalculation, stateChange interface{}) {

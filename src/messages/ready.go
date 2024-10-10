@@ -1,7 +1,6 @@
 package messages
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 
@@ -59,16 +58,9 @@ func SendReadyMessageInit(conn net.Conn, username string) {
 func HandleReadyMessage(ready map[string]interface{}, conn net.Conn) {
 	// Print the incoming message
 	cm := connM.GetConnectionManager()
-	readyBytes, _ := json.Marshal(ready)
-	utils.PrettyPrintJSON(utils.InsertSpaceAfterColons(readyBytes))
 
 	// Unmarshal the incoming JSON data into ClientReadyMessage struct
 	var clientReadyMessage ClientReadyMessage
-	err := json.Unmarshal(readyBytes, &clientReadyMessage)
-	if err != nil {
-		utils.PrettyPrintJSON([]byte(`{"error": "Invalid JSON format"}`))
-		return
-	}
 
 	// Extract the isReady and manuallyInitiated
 	isReady := clientReadyMessage.IsReady
@@ -103,10 +95,6 @@ func HandleReadyMessage(ready map[string]interface{}, conn net.Conn) {
 	}
 
 	room.PrintReadyStates()
-
-	// Pretty print the ready message
-	readyMessageBytes, _ := json.Marshal(readyMessage)
-	utils.PrettyPrintJSON(utils.InsertSpaceAfterColons(readyMessageBytes))
 
 	// Send the ready message to all connections in the room
 

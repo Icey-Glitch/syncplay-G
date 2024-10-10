@@ -2,8 +2,8 @@ package utils
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
+	"github.com/goccy/go-json"
 	"net"
 
 	connM "github.com/Icey-Glitch/Syncplay-G/mngr/conn"

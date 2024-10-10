@@ -1,8 +1,6 @@
 package messages
 
 import (
-	"encoding/json"
-
 	connM "github.com/Icey-Glitch/Syncplay-G/mngr/conn"
 	"github.com/Icey-Glitch/Syncplay-G/utils"
 )
@@ -23,7 +21,5 @@ func SendChatMessage(message, username string) {
 	chatMessage.Chat.Message = message
 	chatMessage.Chat.Username = username
 
-	chatBytes, _ := json.Marshal(chatMessage)
-	utils.PrettyPrintJSON(utils.InsertSpaceAfterColons(chatBytes))
 	utils.SendJSONMessageMultiCast(chatMessage, room.Name)
 }
