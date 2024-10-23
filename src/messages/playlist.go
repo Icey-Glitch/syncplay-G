@@ -27,7 +27,7 @@ type PlaylistIndexMessage struct {
 	} `json:"Set"`
 }
 
-// handle
+// HandlePlaylistIndexMessage handle
 func HandlePlaylistIndexMessage(conn net.Conn, playlistIndex map[string]interface{}) {
 	cm := connM.GetConnectionManager()
 	room := cm.GetRoomByConnection(conn)
@@ -94,7 +94,7 @@ func HandlePlaylistChangeMessage(conn net.Conn, playlistChange map[string]interf
 	SendPlaylistChangeMessage(conn, room.Name)
 }
 
-// extract
+// ExtractStatePlaystateArguments extract
 func ExtractStatePlaystateArguments(playstate map[string]interface{}, conn net.Conn) (interface{}, interface{}, interface{}, interface{}) {
 	cm := connM.GetConnectionManager()
 	room := cm.GetRoomByConnection(conn)
@@ -123,7 +123,7 @@ func ExtractStatePlaystateArguments(playstate map[string]interface{}, conn net.C
 	}
 
 	// store the user's playstate
-	room.PlaylistManager.SetUserPlaystate(room.GetUsernameByConnection(conn), int(position), paused, doSeek, setBy.(string))
+	room.PlaylistManager.SetUserPlaystate(room.GetUsernameByConnection(conn), position, paused, doSeek, setBy.(string))
 
 	return position, paused, doSeek, setBy
 }

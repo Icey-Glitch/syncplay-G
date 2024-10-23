@@ -1,0 +1,247 @@
+The cached device pixel ratio value was stale on window update.  Please file a QTBUG which explains how to reproduce.
+The cached device pixel ratio value was stale on window update.  Please file a QTBUG which explains how to reproduce.
+[01:34:17 PM] client/server >> {"TLS": {"startTLS": "send"}}
+The cached device pixel ratio value was stale on window update.  Please file a QTBUG which explains how to reproduce.
+[01:34:17 PM] player >> ['set_property', 'pause', 'yes']
+[01:34:17 PM] <mpv> Throttling message send, so sleeping for 0.05
+[01:34:17 PM] player << <get_syncplayintf_options>
+[01:34:17 PM] <mpv> Throttling message send, so sleeping for 0.05
+[01:34:17 PM] player >> ['script-message-to', 'syncplayintf', 'set_syncplayintf_options', 'chatInputEnabled=True, chatInputFontFamily=sans-serif, chatInputRelativeFontSize=24.0, chatInputFontWeight=1.0, chatInputFontUnderline=False, chatInputFontColor=#FFFF00, chatInputPosition=Top, chatOutputFontFamily=sans-serif, chatOutputRelativeFontSize=24.0, chatOutputFontWeight=1.0, chatOutputFontUnderline=False, chatOutputMode=Chatroom, chatMaxLines=7.0, chatTopMargin=25.0, chatLeftMargin=20.0, chatBottomMargin=30.0, chatDirectInput=False, notificationTimeout=3.0, alertTimeout=5.0, chatTimeout=7.0, chatOutputEnabled=True, MaxChatMessageLength=150, inputPromptStartCharacter=〉, inputPromptEndCharacter= 〈, backslashSubstituteCharacter=＼, mpv-key-tab-hint=[TAB] to toggle access to alphabet row key shortcuts., mpv-key-hint=[ENTER] to send message. [ESC] to escape chat mode., alphakey-mode-warning-first-line=You can temporarily use old mpv bindings with a-z keys., alphakey-mode-warning-second-line=Press [TAB] to return to Syncplay chat mode., OscVisibilityChangeCompatible=True']
+[01:34:17 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+MESA-INTEL: warning: ../src/intel/vulkan/anv_formats.c:794: FINISHME: support more multi-planar formats with DRM modifiers
+[01:34:18 PM] player >> ['set_property', 'osd-align-y', 'bottom']
+[01:34:18 PM] <mpv> Throttling message send, so sleeping for 0.05
+[01:34:18 PM] player >> ['set_property', 'osd-margin-y', 110]
+[01:34:18 PM] player << <paused=true, pos=nil>
+[01:34:18 PM] Ignoring _fileIsLoaded MPV_NEWFILE delay
+[01:34:18 PM] File not loaded so using GlobalPosition for getCalculatedPosition(0.0)
+[01:34:18 PM] No file loaded so storing position 0.0 as GlobalPosition (0.0)
+[01:34:18 PM] client/server << {"TLS": {"startTLS": "false"}}
+[01:34:18 PM] client/server >> {"Hello": {"username": "car1", "room": {"name": "cat"}, "version": "1.2.255", "realversion": "1.7.3", "features": {"sharedPlaylists": true, "chat": true, "uiMode": "GUI", "featureList": true, "readiness": true, "managedRooms": true, "persistentRooms": true}}}
+[01:34:18 PM] client/server << {"Set":{"ready":{"username":"car1","isReady":false,"manuallyInitiated":false}}}
+[01:34:18 PM] client/server << {"Set":{"playlistChange":{"user":"car","files":["https://test-videos.co.uk/vids/bigbuckbunny/mp4/av1/1080/Big_Buck_Bunny_1080_10s_1MB.mp4"]}}}
+[01:34:18 PM] <mpv> Throttling message send, so sleeping for 0.05
+[01:34:18 PM] player >> ['script-message-to', 'syncplayintf', 'notification-osd-neutral', 'car updated the playlist']
+[01:34:18 PM] client/server << {"Set":{"playlistIndex":{"index":null,"user":null}}}
+[01:34:18 PM] client/server << {"Hello":{"username":"car1","room":{"name":"cat"},"version":"1.7.3","realversion":"1.7.3","features":{"isolateRooms":false,"readiness":true,"managedRooms":true,"persistentRooms":false,"chat":true,"maxChatMessageLength":150,"maxUsernameLength":16,"maxRoomNameLength":35,"maxFilenameLength":250},"motd":""}}
+[01:34:18 PM] <mpv> Throttling message send, so sleeping for 0.05
+[01:34:18 PM] player >> ['script-message-to', 'syncplayintf', 'notification-osd-neutral', 'Successfully connected to server']
+[01:34:18 PM] client/server >> {"Set": {"ready": {"isReady": false, "manuallyInitiated": false}}}
+[01:34:18 PM] <mpv> Throttling message send, so sleeping for 0.05
+[01:34:18 PM] player >> ['script-message-to', 'syncplayintf', 'set_syncplayintf_options', 'chatInputEnabled=True, chatInputFontFamily=sans-serif, chatInputRelativeFontSize=24.0, chatInputFontWeight=1.0, chatInputFontUnderline=False, chatInputFontColor=#FFFF00, chatInputPosition=Top, chatOutputFontFamily=sans-serif, chatOutputRelativeFontSize=24.0, chatOutputFontWeight=1.0, chatOutputFontUnderline=False, chatOutputMode=Chatroom, chatMaxLines=7.0, chatTopMargin=25.0, chatLeftMargin=20.0, chatBottomMargin=30.0, chatDirectInput=False, notificationTimeout=3.0, alertTimeout=5.0, chatTimeout=7.0, chatOutputEnabled=True, MaxChatMessageLength=150, inputPromptStartCharacter=〉, inputPromptEndCharacter= 〈, backslashSubstituteCharacter=＼, mpv-key-tab-hint=[TAB] to toggle access to alphabet row key shortcuts., mpv-key-hint=[ENTER] to send message. [ESC] to escape chat mode., alphakey-mode-warning-first-line=You can temporarily use old mpv bindings with a-z keys., alphakey-mode-warning-second-line=Press [TAB] to return to Syncplay chat mode., OscVisibilityChangeCompatible=True']
+[01:34:18 PM] <mpv> Throttling message send, so sleeping for 0.05
+[01:34:18 PM] player >> ['set_property', 'osd-align-y', 'bottom']
+[01:34:18 PM] <mpv> Throttling message send, so sleeping for 0.05
+[01:34:18 PM] player >> ['set_property', 'osd-margin-y', 110]
+[01:34:18 PM] client/server << {"State":{"ping":{"latencyCalculation":1729715658.1274471,"serverRtt":0},"playstate":{"position":9.9666666666667,"paused":true,"doSeek":false,"setBy":null}}}
+[01:34:18 PM] client/server >> {"List": null}
+[01:34:18 PM] client/server >> {"State": {"playstate": {"position": 9.9666666666667, "paused": true}, "ping": {"latencyCalculation": 1729715658.1274471, "clientLatencyCalculation": 1729715658.3999245, "clientRtt": 0}}}
+[01:34:18 PM] <mpv> Throttling message send, so sleeping for 0.05
+[01:34:18 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:18 PM] player << <paused=true, pos=nil>
+[01:34:18 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:18 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:18 PM] client/server << {"Set":{"ready":{"isReady":false,"manuallyInitiated":false,"username":"car1"}}}
+[01:34:18 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:18 PM] player << <paused=true, pos=nil>
+[01:34:18 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:18 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:18 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:18 PM] player << <paused=true, pos=nil>
+[01:34:18 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:18 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:18 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:18 PM] player << <paused=true, pos=nil>
+[01:34:18 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:18 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:18 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:18 PM] player << <paused=true, pos=nil>
+[01:34:18 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:18 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:18 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:18 PM] player << <paused=true, pos=nil>
+[01:34:18 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:18 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:18 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:19 PM] player << <paused=true, pos=nil>
+[01:34:19 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:19 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:19 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:19 PM] player << <paused=true, pos=nil>
+[01:34:19 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:19 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:19 PM] client/server << {"State":{"ping":{"latencyCalculation":1729715658.1274471,"serverRtt":0},"playstate":{"position":9.9666666666667,"paused":true,"doSeek":false,"setBy":"car1"}}}
+[01:34:19 PM] client/server >> {"State": {"playstate": {"position": 9.9666666666667, "paused": true}, "ping": {"latencyCalculation": 1729715658.1274471, "clientLatencyCalculation": 1729715659.1278734, "clientRtt": 0}}}
+[01:34:19 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:19 PM] player << <paused=true, pos=nil>
+[01:34:19 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:19 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:19 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:19 PM] player << <paused=true, pos=nil>
+[01:34:19 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:19 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:19 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:19 PM] player << <paused=true, pos=nil>
+[01:34:19 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:19 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:19 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:19 PM] player << <paused=true, pos=nil>
+[01:34:19 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:19 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:19 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:19 PM] player << <paused=true, pos=nil>
+[01:34:19 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:19 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:19 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:19 PM] player << <paused=true, pos=nil>
+[01:34:19 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:19 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:19 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:19 PM] player << <paused=true, pos=nil>
+[01:34:19 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:19 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:19 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:19 PM] player << <paused=true, pos=nil>
+[01:34:19 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:19 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:19 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:20 PM] player << <paused=true, pos=nil>
+[01:34:20 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:20 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:20 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:20 PM] player << <paused=true, pos=nil>
+[01:34:20 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:20 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:20 PM] client/server << {"State":{"ping":{"latencyCalculation":1729715658.1274471,"serverRtt":0},"playstate":{"position":9.9666666666667,"paused":true,"doSeek":false,"setBy":"car1"}}}
+[01:34:20 PM] client/server >> {"State": {"playstate": {"position": 9.9666666666667, "paused": true}, "ping": {"latencyCalculation": 1729715658.1274471, "clientLatencyCalculation": 1729715660.1278179, "clientRtt": 0}}}
+[01:34:20 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:20 PM] player << <paused=true, pos=nil>
+[01:34:20 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:20 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:20 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:20 PM] player << <paused=true, pos=nil>
+[01:34:20 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:20 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:20 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:20 PM] player << <paused=true, pos=nil>
+[01:34:20 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:20 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:20 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:20 PM] player << <paused=true, pos=nil>
+[01:34:20 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:20 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:20 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:20 PM] player << <paused=true, pos=nil>
+[01:34:20 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:20 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:20 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:20 PM] player << <paused=true, pos=nil>
+[01:34:20 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:20 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:20 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:20 PM] player << <paused=true, pos=nil>
+[01:34:20 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:20 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:20 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:20 PM] player << <paused=true, pos=nil>
+[01:34:20 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:20 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:20 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:21 PM] player << <paused=true, pos=nil>
+[01:34:21 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:21 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:21 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:21 PM] player << <paused=true, pos=nil>
+[01:34:21 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:21 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:21 PM] client/server << {"State":{"ping":{"latencyCalculation":1729715658.1274471,"serverRtt":0},"playstate":{"position":9.9666666666667,"paused":true,"doSeek":false,"setBy":"car1"}}}
+[01:34:21 PM] client/server >> {"State": {"playstate": {"position": 9.9666666666667, "paused": true}, "ping": {"latencyCalculation": 1729715658.1274471, "clientLatencyCalculation": 1729715661.1279643, "clientRtt": 0}}}
+[01:34:21 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:21 PM] player << <paused=true, pos=nil>
+[01:34:21 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:21 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:21 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:21 PM] player << <paused=true, pos=nil>
+[01:34:21 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:21 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:21 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:21 PM] player << <paused=true, pos=nil>
+[01:34:21 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:21 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:21 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:21 PM] player << <paused=true, pos=nil>
+[01:34:21 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:21 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:21 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:21 PM] player << <paused=true, pos=nil>
+[01:34:21 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:21 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:21 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:21 PM] player << <paused=true, pos=nil>
+[01:34:21 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:21 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:21 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:21 PM] player << <paused=true, pos=nil>
+[01:34:21 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:21 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:21 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:21 PM] player << <paused=true, pos=nil>
+[01:34:21 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:21 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:21 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:21 PM] player << <paused=true, pos=nil>
+[01:34:21 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:22 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:22 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:22 PM] player << <paused=true, pos=nil>
+[01:34:22 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:22 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:22 PM] client/server << {"State":{"ping":{"latencyCalculation":1729715658.1274471,"serverRtt":0},"playstate":{"position":9.9666666666667,"paused":true,"doSeek":false,"setBy":"car1"}}}
+[01:34:22 PM] client/server >> {"State": {"playstate": {"position": 9.9666666666667, "paused": true}, "ping": {"latencyCalculation": 1729715658.1274471, "clientLatencyCalculation": 1729715662.1280825, "clientRtt": 0}}}
+[01:34:22 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:22 PM] player << <paused=true, pos=nil>
+[01:34:22 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:22 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:22 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:22 PM] player << <paused=true, pos=nil>
+[01:34:22 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:22 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:22 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:22 PM] player << <paused=true, pos=nil>
+[01:34:22 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:22 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:22 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:22 PM] player << <paused=true, pos=nil>
+[01:34:22 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:22 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:22 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:22 PM] player << <paused=true, pos=nil>
+[01:34:22 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:22 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:22 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:22 PM] player << <paused=true, pos=nil>
+[01:34:22 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:22 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:22 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:22 PM] player << <paused=true, pos=nil>
+[01:34:22 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:22 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:22 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:22 PM] player << <paused=true, pos=nil>
+[01:34:22 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:22 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:22 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:23 PM] player << <paused=true, pos=nil>
+[01:34:23 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:23 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:23 PM] player >> ['script-message-to', 'syncplayintf', 'get_paused_and_position']
+[01:34:23 PM] player << <paused=true, pos=nil>
+[01:34:23 PM] No file loaded so storing position 9.9666666666667 as GlobalPosition (9.9666666666667)
+[01:34:23 PM] File not loaded so using GlobalPosition for getCalculatedPosition(9.9666666666667)
+[01:34:23 PM] client/server << {"State":{"ping":{"latencyCalculation":1729715658.1274471,"serverRtt":0},"playstate":{"position":9.9666666666667,"paused":true,"doSeek":false,"setBy":"car1"}}}
+[01:34:23 PM] client/server >> {"State": {"playstate": {"position": 9.9666666666667, "paused": true}, "ping": {"latencyCalculation": 1729715658.1274471, "clientLatencyCalculation": 1729715663.1284068, "clientRtt": 0}}}
+[01:34:23 PM] player >> ['quit']
+[01:34:23 PM] player << Exiting... (Quit)
+[01:34:23 PM] <mpv> Throttling message send, so sleeping for 0.05
+[01:34:23 PM] player >> ['script-message-to', 'syncplayintf', 'notification-osd-neutral', 'Connection with server lost, attempting to reconnect']
+[01:34:23 PM] CANNOT SEND ['script-message-to', 'syncplayintf', 'notification-osd-neutral', 'Connection with server lost, attempting to reconnect'] DUE TO socket is closed

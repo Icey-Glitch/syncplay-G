@@ -5,6 +5,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/Icey-Glitch/Syncplay-G/mngr/event"
 	playlistsM "github.com/Icey-Glitch/Syncplay-G/mngr/playlists"
 	"github.com/Icey-Glitch/Syncplay-G/mngr/ready"
 )
@@ -15,6 +16,8 @@ type Connection struct {
 	Conn       net.Conn
 	RoomName   string
 	readyState ready.ReadyState
+
+	LatencyCalculation float64
 }
 
 type Room struct {
@@ -25,12 +28,14 @@ type Room struct {
 	mutex           sync.RWMutex
 
 	RoomState roomState
+
+	stateEvent *event.TimedEvent
 }
 
 type roomState struct {
 	IsPaused bool    `json:"isPaused"`
 	Position float64 `json:"position"`
-	setBy    string
+	SetBy    string
 }
 
 func NewRoom(name string) *Room {
@@ -39,6 +44,7 @@ func NewRoom(name string) *Room {
 		Users:           make([]*Connection, 0),
 		ReadyManager:    ready.NewReadyManager(),
 		PlaylistManager: playlistsM.NewPlaylistManager(),
+		stateEvent:      event.NewTimedEvent(1),
 	}
 }
 
@@ -89,6 +95,7 @@ func (r *Room) AddConnection(connection *Connection) {
 	defer r.mutex.Unlock()
 
 	r.Users = append(r.Users, connection)
+
 }
 
 func (r *Room) RemoveConnection(conn net.Conn) {
@@ -103,9 +110,29 @@ func (r *Room) RemoveConnection(conn net.Conn) {
 			r.PlaylistManager.RemoveUserPlaystate(connection.Username)
 			// remove connection
 			r.Users = append(r.Users[:i], r.Users[i+1:]...)
+			r.stateEvent.Publish(conn)
 			break
 		}
 	}
+}
+
+func (r *Room) SubscribeToStateChanges() chan interface{} {
+	return r.stateEvent.Subscribe()
+}
+
+/*
+usage:
+ch := room.SubscribeToStateChanges()
+for {
+	select {
+	case state := <-ch:
+		// do something with state
+	}
+}
+*/
+
+func (r *Room) UnsubscribeFromStateChanges(ch chan interface{}) {
+	r.stateEvent.Unsubscribe(ch)
 }
 
 // list rooms
@@ -139,7 +166,7 @@ func (r *Room) PrintReadyStates() {
 }
 
 // play state
-func (r *Room) SetUserPlaystate(username string, position int, paused bool, doSeek bool, setBy string) {
+func (r *Room) SetUserPlaystate(username string, position float64, paused bool, doSeek bool, setBy string) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -173,4 +200,29 @@ func (r *Room) SetRoomState(state roomState) {
 
 	r.RoomState = state
 
+}
+
+// set user latency calculation
+func (r *Room) SetUserLatencyCalculation(username string, latencyCalculation float64) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	for _, connection := range r.Users {
+		if connection.Username == username {
+			connection.LatencyCalculation = latencyCalculation
+		}
+	}
+}
+
+// get user latency calculation
+func (r *Room) GetLatencyCalculation(username string) float64 {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	for _, connection := range r.Users {
+		if connection.Username == username {
+			return connection.LatencyCalculation
+		}
+	}
+	return 0
 }

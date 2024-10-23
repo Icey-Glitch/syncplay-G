@@ -4,13 +4,34 @@ import (
 	"net"
 	"sync"
 
+	"github.com/Icey-Glitch/Syncplay-G/mngr/event"
 	roomM "github.com/Icey-Glitch/Syncplay-G/mngr/room"
 )
 
 type ConnectionManager struct {
-	rooms map[string]*roomM.Room
-	mutex sync.RWMutex
+	rooms           map[string]*roomM.Room
+	mutex           sync.RWMutex
+	connectionEvent *event.Event
 }
+
+func NewConnectionManager() *ConnectionManager {
+	return &ConnectionManager{
+		rooms:           make(map[string]*roomM.Room),
+		connectionEvent: event.NewEvent(),
+	}
+}
+
+func GetConnectionManager() *ConnectionManager {
+	if connectionManager == nil {
+		connectionManager = &ConnectionManager{
+			rooms:           make(map[string]*roomM.Room),
+			connectionEvent: event.NewEvent(),
+		}
+	}
+	return connectionManager
+}
+
+var connectionManager *ConnectionManager
 
 func (cm *ConnectionManager) AddConnection(username, roomName string, state interface{}, conn net.Conn) {
 	cm.mutex.Lock()
@@ -24,8 +45,9 @@ func (cm *ConnectionManager) AddConnection(username, roomName string, state inte
 	}
 
 	room := cm.rooms[roomName]
-
 	room.AddConnection(connection)
+
+	cm.connectionEvent.Publish(connection)
 }
 
 func (cm *ConnectionManager) RemoveConnection(conn net.Conn) {
@@ -35,6 +57,8 @@ func (cm *ConnectionManager) RemoveConnection(conn net.Conn) {
 	for _, room := range cm.rooms {
 		room.RemoveConnection(conn)
 	}
+
+	cm.connectionEvent.Publish(conn)
 }
 
 func (cm *ConnectionManager) CreateRoom(roomName string) {
@@ -51,7 +75,6 @@ func (cm *ConnectionManager) GetRoom(roomName string) *roomM.Room {
 	return cm.rooms[roomName]
 }
 
-// get room by connection
 func (cm *ConnectionManager) GetRoomByConnection(conn net.Conn) *roomM.Room {
 	cm.mutex.RLock()
 	defer cm.mutex.RUnlock()
@@ -64,7 +87,6 @@ func (cm *ConnectionManager) GetRoomByConnection(conn net.Conn) *roomM.Room {
 	return nil
 }
 
-// get room by username
 func (cm *ConnectionManager) GetRoomByUsername(username string) *roomM.Room {
 	cm.mutex.RLock()
 	defer cm.mutex.RUnlock()
@@ -77,13 +99,10 @@ func (cm *ConnectionManager) GetRoomByUsername(username string) *roomM.Room {
 	return nil
 }
 
-func GetConnectionManager() *ConnectionManager {
-	if connectionManager == nil {
-		connectionManager = &ConnectionManager{
-			rooms: make(map[string]*roomM.Room),
-		}
-	}
-	return connectionManager
+func (cm *ConnectionManager) SubscribeToConnections() chan interface{} {
+	return cm.connectionEvent.Subscribe()
 }
 
-var connectionManager *ConnectionManager
+func (cm *ConnectionManager) UnsubscribeFromConnections(ch chan interface{}) {
+	cm.connectionEvent.Unsubscribe(ch)
+}

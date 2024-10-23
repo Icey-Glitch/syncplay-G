@@ -1,6 +1,7 @@
 package messages
 
 import (
+	"fmt"
 	"net"
 
 	roomM "github.com/Icey-Glitch/Syncplay-G/mngr/room"
@@ -16,7 +17,7 @@ type FileInfo struct {
 
 // PlayerInfo represents the player information.
 type PlayerInfo struct {
-	Position *int     `json:"position,omitempty"`
+	Position *float64 `json:"position,omitempty"`
 	File     FileInfo `json:"file"`
 }
 
@@ -31,7 +32,11 @@ type ListResponse struct {
 // handleListRequest handles the "List" request and returns the response.
 func HandleListRequest(conn net.Conn, room *roomM.Room) {
 	// Retrieve user states from the PlaylistManager
-	userStates := room.PlaylistManager.GetUserStates()
+	userStates, err := room.PlaylistManager.GetUsers()
+	if err != true {
+		fmt.Println("Error getting user states from the PlaylistManager")
+		return
+	}
 
 	// Construct the players map
 	players := make(map[string]PlayerInfo)

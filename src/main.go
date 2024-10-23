@@ -73,6 +73,7 @@ func handleClient(conn net.Conn) {
 		if err := decoder.Decode(&msg); err == io.EOF {
 			cm := connM.GetConnectionManager()
 			fmt.Println("Client disconnected")
+			messages.HandleUserLeftMessage(conn)
 			cm.RemoveConnection(conn)
 			return
 		} else if err != nil {
@@ -155,6 +156,7 @@ func handleHelloMessage(helloMsg interface{}, encoder *json.Encoder, conn net.Co
 	utils.SendJSONMessage(conn, response)
 
 	messages.SendInitialState(conn, username)
+
 }
 
 func handleSetMessage(setMsg interface{}, conn net.Conn) {
@@ -210,6 +212,8 @@ func handleSetMessage(setMsg interface{}, conn net.Conn) {
 }
 
 func handleStateMessage(stateMsg interface{}, encoder *json.Encoder, conn net.Conn) {
+	cm := connM.GetConnectionManager()
+	user := cm.GetRoomByConnection(conn).GetUsernameByConnection(conn)
 	var position, paused, doSeek, setBy interface{}
 	var messageAge, latencyCalculation float64
 	clientIgnoringOnTheFly := 0
@@ -236,14 +240,16 @@ func handleStateMessage(stateMsg interface{}, encoder *json.Encoder, conn net.Co
 
 	if ping, ok := stateData["ping"].(map[string]interface{}); ok {
 		messageAge, latencyCalculation = messages.HandleStatePing(ping)
+		// store latency calculation in room
+		cm.GetRoomByConnection(conn).SetUserLatencyCalculation(user, latencyCalculation)
 	}
 
 	if position != nil && paused != nil && clientIgnoringOnTheFly == 0 {
-		messages.UpdateGlobalState(position, paused, doSeek, setBy, messageAge)
+		messages.UpdateGlobalState(position, paused, doSeek, setBy, messageAge, latencyCalculation)
 	}
 
-	position, paused, doSeek, stateChange := messages.GetLocalState()
-	messages.SendStateMessage(conn, position, paused, doSeek, latencyCalculation, stateChange)
+	messages.GetLocalState()
+
 }
 
 func handleChatMessage(chatData interface{}, encoder *json.Encoder, conn net.Conn) {
@@ -262,4 +268,5 @@ func sendSessionInformation(conn net.Conn, username, roomName string) {
 	messages.SendReadyMessageInit(conn, username)
 	messages.SendPlaylistChangeMessage(conn, roomName)
 	messages.SendPlaylistIndexMessage(conn, roomName)
+	go messages.AddUserToSchedule(conn, username)
 }

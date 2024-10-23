@@ -2,26 +2,30 @@ package ready
 
 import (
 	"sync"
+
+	"github.com/Icey-Glitch/Syncplay-G/mngr/event"
 )
 
 type ReadyState struct {
-	Username          string `json:"username"`
-	IsReady           bool   `json:"isReady"`
-	ManuallyInitiated bool   `json:"manuallyInitiated"`
+	Username          string
+	IsReady           bool
+	ManuallyInitiated bool
 }
 
 type ReadyManager struct {
 	readyStates map[string]ReadyState
 	mutex       sync.RWMutex
+	stateEvent  *event.Event
 }
 
 func NewReadyManager() *ReadyManager {
 	return &ReadyManager{
 		readyStates: make(map[string]ReadyState),
+		stateEvent:  event.NewEvent(),
 	}
 }
 
-func (rm *ReadyManager) SetUserReadyState(username string, isReady, manuallyInitiated bool) {
+func (rm *ReadyManager) SetUserReadyState(username string, isReady bool, manuallyInitiated bool) {
 	rm.mutex.Lock()
 	defer rm.mutex.Unlock()
 
@@ -30,6 +34,8 @@ func (rm *ReadyManager) SetUserReadyState(username string, isReady, manuallyInit
 		IsReady:           isReady,
 		ManuallyInitiated: manuallyInitiated,
 	}
+
+	rm.stateEvent.Publish(rm.readyStates[username])
 }
 
 func (rm *ReadyManager) GetUserReadyState(username string) (ReadyState, bool) {
@@ -45,4 +51,13 @@ func (rm *ReadyManager) RemoveUserReadyState(username string) {
 	defer rm.mutex.Unlock()
 
 	delete(rm.readyStates, username)
+	rm.stateEvent.Publish(username)
+}
+
+func (rm *ReadyManager) SubscribeToStateChanges() chan interface{} {
+	return rm.stateEvent.Subscribe()
+}
+
+func (rm *ReadyManager) UnsubscribeFromStateChanges(ch chan interface{}) {
+	rm.stateEvent.Unsubscribe(ch)
 }

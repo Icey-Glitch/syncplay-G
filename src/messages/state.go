@@ -30,33 +30,6 @@ type UserState struct {
 	SetBy    interface{}
 }
 
-func SendStateMessage(conn net.Conn, position, paused, doSeek, latencyCalculation, stateChange interface{}) {
-	cm := connM.GetConnectionManager()
-	room := cm.GetRoomByConnection(conn)
-	if room == nil {
-		return
-	}
-
-	stateMessage := StateMessage{}
-	stateMessage.State.Ping.LatencyCalculation = latencyCalculation.(float64)
-	stateMessage.State.Ping.ServerRtt = 0
-	stateMessage.State.Playstate.Position = position.(float64)
-	stateMessage.State.Playstate.Paused = paused.(bool)
-	stateMessage.State.Playstate.DoSeek = doSeek.(bool)
-	stateMessage.State.Playstate.SetBy = stateChange
-
-	room.RoomState.Position = position.(float64)
-	room.RoomState.IsPaused = paused.(bool)
-
-	// update the room's state
-	room.RoomState.Position = position.(float64)
-	room.RoomState.IsPaused = paused.(bool)
-
-	// send the state message to all users in the room
-
-	utils.SendJSONMessage(conn, stateMessage)
-}
-
 func SendInitialState(conn net.Conn, username string) {
 	// check if the room exists
 	cm := connM.GetConnectionManager()
@@ -92,6 +65,48 @@ func SendInitialState(conn net.Conn, username string) {
 
 }
 
+// add user to schedule
+func AddUserToSchedule(conn net.Conn, username string) {
+	room := connM.GetConnectionManager().GetRoomByConnection(conn)
+
+	for {
+		time.Sleep(1 * time.Second)
+		puser, exists := room.PlaylistManager.GetUserPlaystate(username)
+		latencyCalculation := room.GetLatencyCalculation(username)
+		if exists != true {
+			break
+		}
+		sendStateMessage(conn, puser.Position, puser.Paused, puser.DoSeek, latencyCalculation, puser.SetBy)
+	}
+
+}
+
+func sendStateMessage(conn net.Conn, position, paused, doSeek, latencyCalculation, stateChange interface{}) {
+	room := connM.GetConnectionManager().GetRoomByConnection(conn)
+	if room == nil {
+		return
+	}
+
+	stateMessage := StateMessage{}
+	stateMessage.State.Ping.LatencyCalculation = latencyCalculation.(float64)
+	stateMessage.State.Ping.ServerRtt = 0
+	stateMessage.State.Playstate.Position = position.(float64)
+	stateMessage.State.Playstate.Paused = paused.(bool)
+	stateMessage.State.Playstate.DoSeek = doSeek.(bool)
+	stateMessage.State.Playstate.SetBy = stateChange
+
+	room.RoomState.Position = position.(float64)
+	room.RoomState.IsPaused = paused.(bool)
+
+	// update the room's state
+	room.RoomState.Position = position.(float64)
+	room.RoomState.IsPaused = paused.(bool)
+
+	// send the state message to all users in the room
+
+	utils.SendJSONMessage(conn, stateMessage)
+}
+
 func HandleStatePing(ping map[string]interface{}) (float64, float64) {
 	messageAge, ok := ping["messageAge"].(float64)
 	if !ok {
@@ -112,11 +127,12 @@ var globalState = struct {
 	setBy    interface{}
 }{}
 
-func UpdateGlobalState(position, paused, doSeek, setBy interface{}, messageAge float64) {
+func UpdateGlobalState(position, paused, doSeek, setBy interface{}, messageAge float64, latencyCalculation float64) {
 	globalState.position = position.(float64)
 	globalState.paused = paused.(bool)
 	globalState.doSeek = doSeek.(bool)
 	globalState.setBy = setBy
+
 }
 
 func GetLocalState() (interface{}, interface{}, interface{}, interface{}) {

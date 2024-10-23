@@ -62,8 +62,8 @@ func HandleReadyMessage(ready map[string]interface{}, conn net.Conn) {
 	// Unmarshal the incoming JSON data into ClientReadyMessage struct
 	var clientReadyMessage ClientReadyMessage
 
-	// Extract the isReady and manuallyInitiated
-	isReady := clientReadyMessage.IsReady
+	// extract the data from the map
+	isReady := ready["isReady"].(bool)
 	manuallyInitiated := clientReadyMessage.ManuallyInitiated
 
 	// Get the room and user associated with the connection

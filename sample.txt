@@ -1,8 +1,0 @@
-Client message: map[TLS:map[startTLS:send]]
-Server message: map[TLS:map[startTLS:false]]
-Client message: map[Hello:map[features:map[chat:true featureList:true managedRooms:true persistentRooms:true readiness:true sharedPlaylists:true uiMode:GUI] realversion:1.7.3 room:map[name:cat] username:car1 version:1.2.255]]
-Server message: map[Set:map[ready:map[isReady:<nil> manuallyInitiated:false username:car1]]]
-Server message: map[Set:map[playlistChange:map[files:[] user:<nil>]]]
-Server message: map[Set:map[playlistIndex:map[index:<nil> user:<nil>]]]
-Server message: map[Hello:map[features:map[chat:true isolateRooms:false managedRooms:true maxChatMessageLength:150 maxFilenameLength:250 maxRoomNameLength:35 maxUsernameLength:16 persistentRooms:false readiness:true] motd: realversion:1.7.3 room:map[name:cat] username:car1 version:1.7.3]]
-Server message: map[State:map[ping:map[latencyCalculation:1.727897933281024e+09 serverRtt:0] playstate:map[doSeek:false paused:true position:0 setBy:<nil>]]]
