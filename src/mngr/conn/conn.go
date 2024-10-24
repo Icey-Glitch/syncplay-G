@@ -8,6 +8,11 @@ import (
 	roomM "github.com/Icey-Glitch/Syncplay-G/mngr/room"
 )
 
+/*
+TODO:
+- Clean up orphin connections and rooms
+*/
+
 type ConnectionManager struct {
 	rooms           map[string]*roomM.Room
 	mutex           sync.RWMutex

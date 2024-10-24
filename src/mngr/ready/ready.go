@@ -6,6 +6,13 @@ import (
 	"github.com/Icey-Glitch/Syncplay-G/mngr/event"
 )
 
+/*
+TODO:
+
+- Implement a way to automatically set all users to ready when the room is paused / unpaused more efficiently
+
+*/
+
 type ReadyState struct {
 	Username          string
 	IsReady           bool

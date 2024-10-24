@@ -10,6 +10,11 @@ import (
 	"github.com/Icey-Glitch/Syncplay-G/mngr/ready"
 )
 
+/*
+TODO:
+- Clean up orphin connections and rooms
+*/
+
 type Connection struct {
 	Username   string
 	State      interface{}

@@ -77,6 +77,11 @@ func run() bool {
 	fmt.Println("5 seconds have passed")
 	return true
 }
+
+TODO:
+- add ability to pass in a function that will be called after the timer has expired
+- better deinitialization of the event
+- ability to add a listner to another retun value of the called function
 */
 
 type ManagedEvent struct {
