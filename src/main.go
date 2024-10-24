@@ -61,7 +61,11 @@ func handleClient(conn net.Conn) {
 	}(conn)
 
 	// Set a timeout to avoid stale connections
-	conn.SetDeadline(time.Now().Add(time.Minute * 5))
+	err := conn.SetDeadline(time.Now().Add(time.Minute * 5))
+	if err != nil {
+		fmt.Println("Failed to set deadline" + err.Error())
+		return
+	}
 
 	reader := bufio.NewReader(conn)
 	writer := bufio.NewWriter(conn)
@@ -153,7 +157,7 @@ func handleHelloMessage(helloMsg interface{}, encoder *json.Encoder, conn net.Co
 	sendSessionInformation(conn, username, roomName)
 
 	response := messages.CreateHelloResponse(username, "1.7.3", roomName)
-	utils.SendJSONMessage(conn, response)
+	utils.SendJSONMessage(conn, response, cm.GetRoom(roomName).PlaylistManager, username)
 
 	messages.SendInitialState(conn, username)
 
@@ -245,7 +249,7 @@ func handleStateMessage(stateMsg interface{}, encoder *json.Encoder, conn net.Co
 	}
 
 	if position != nil && paused != nil && clientIgnoringOnTheFly == 0 {
-		messages.UpdateGlobalState(position, paused, doSeek, setBy, messageAge, latencyCalculation)
+		messages.UpdateGlobalState(conn, position, paused, doSeek, setBy, latencyCalculation, messageAge)
 	}
 
 	messages.GetLocalState()
@@ -268,5 +272,19 @@ func sendSessionInformation(conn net.Conn, username, roomName string) {
 	messages.SendReadyMessageInit(conn, username)
 	messages.SendPlaylistChangeMessage(conn, roomName)
 	messages.SendPlaylistIndexMessage(conn, roomName)
-	go messages.AddUserToSchedule(conn, username)
+
+	room := connM.GetConnectionManager().GetRoom(roomName)
+	if room == nil {
+		fmt.Println("Error: Room not found")
+		return
+	}
+
+	em := room.GetStateEventManager()
+
+	params := []interface{}{room, username}
+
+	managedEvent := em.NewManagedEvent(1, messages.SendUserState, true, params, room.GetStateEventTicker())
+
+	managedEvent.Start()
+
 }

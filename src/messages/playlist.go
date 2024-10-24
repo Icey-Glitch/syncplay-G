@@ -122,9 +122,6 @@ func ExtractStatePlaystateArguments(playstate map[string]interface{}, conn net.C
 		setBy = room.GetUsernameByConnection(conn)
 	}
 
-	// store the user's playstate
-	room.PlaylistManager.SetUserPlaystate(room.GetUsernameByConnection(conn), position, paused, doSeek, setBy.(string))
-
 	return position, paused, doSeek, setBy
 }
 

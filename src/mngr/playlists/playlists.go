@@ -15,17 +15,22 @@ type User struct {
 	Duration float64
 	Name     string
 	Size     float64
+
+	LastMessageAge float64
 }
 
 type Playlist struct {
-	Files []interface{}
-	Index interface{}
-	User  struct {
+	Files  []interface{}
+	Index  interface{}
+	Paused bool
+	User   struct {
 		Username   string
 		connection interface{}
 	}
 
 	Users map[string]User
+
+	doSeekTime float64
 }
 
 type PlaylistManager struct {
@@ -36,14 +41,20 @@ type PlaylistManager struct {
 
 func NewPlaylistManager() *PlaylistManager {
 	return &PlaylistManager{
-		playlist:   Playlist{Users: make(map[string]User)},
+		playlist:   Playlist{Users: make(map[string]User), Paused: true},
 		stateEvent: event.NewEvent(),
 	}
 }
 
-func (pm *PlaylistManager) SetUserPlaystate(username string, position float64, paused bool, doSeek bool, setBy string) {
+func (pm *PlaylistManager) SetUserPlaystate(username string, position float64, paused bool, doSeek bool, setBy string, messageAge float64) {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
+
+	if doSeek != pm.playlist.Users[username].DoSeek {
+		pm.SetUsersDoSeek(doSeek, messageAge)
+	}
+
+	// TODO: update room paused state if one user unpauses or pause all users if one user pauses
 
 	pm.playlist.Users[username] = User{
 		Username: username,
@@ -86,6 +97,18 @@ func (pm *PlaylistManager) GetUserPlaystate(username string) (User, bool) {
 	return state, exists
 }
 
+// SetUsersDoSeek sets all users in the playlist to doSeek
+func (pm *PlaylistManager) SetUsersDoSeek(doSeek bool, age float64) {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+
+	if age > pm.playlist.doSeekTime { // only update if the new age is greater
+		pm.playlist.doSeekTime = age
+		pm.playlist.Paused = true
+		pm.playlist.Users = make(map[string]User)
+	}
+}
+
 // GetUsers returns a map of all users in the playlist
 func (pm *PlaylistManager) GetUsers() (map[string]User, bool) {
 	if len(pm.playlist.Users) == 0 {
@@ -97,6 +120,16 @@ func (pm *PlaylistManager) GetUsers() (map[string]User, bool) {
 
 	return pm.playlist.Users, true
 
+}
+
+// SetLastMessageAge sets the last message age for the user
+func (pm *PlaylistManager) SetLastMessageAge(username string, age float64) {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+
+	user := pm.playlist.Users[username]
+	user.LastMessageAge = age
+	pm.playlist.Users[username] = user
 }
 
 func (pm *PlaylistManager) GetPlaylist() Playlist {

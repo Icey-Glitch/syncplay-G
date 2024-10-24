@@ -73,6 +73,6 @@ func HandleListRequest(conn net.Conn, room *roomM.Room) {
 	}
 
 	// Send the response
-	utils.SendJSONMessage(conn, listResponse)
+	utils.SendJSONMessage(conn, listResponse, room.PlaylistManager, room.GetUsernameByConnection(conn))
 
 }

@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/*.tar.gz";
     flake-utils.url = "github:numtide/flake-utils";
     nix-vscode-extensions.url = "github:nix-community/nix-vscode-extensions";
   };

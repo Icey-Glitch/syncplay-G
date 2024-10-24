@@ -5,6 +5,7 @@ import (
 	"time"
 
 	connM "github.com/Icey-Glitch/Syncplay-G/mngr/conn"
+	roomM "github.com/Icey-Glitch/Syncplay-G/mngr/room"
 	"github.com/Icey-Glitch/Syncplay-G/utils"
 )
 
@@ -48,7 +49,7 @@ func SendInitialState(conn net.Conn, username string) {
 		stateMessage.State.Playstate.Paused = true
 		stateMessage.State.Playstate.SetBy = "Nobody" // Initial state, set by "Nobody"
 
-		utils.SendJSONMessage(conn, stateMessage)
+		utils.SendJSONMessage(conn, stateMessage, room.PlaylistManager, username)
 		return
 	}
 
@@ -61,28 +62,27 @@ func SendInitialState(conn net.Conn, username string) {
 	stateMessage.State.Playstate.Position = roomState.Position
 	stateMessage.State.Playstate.Paused = roomState.IsPaused
 
-	utils.SendJSONMessage(conn, stateMessage)
+	utils.SendJSONMessage(conn, stateMessage, room.PlaylistManager, username)
 
 }
 
 // add user to schedule
-func AddUserToSchedule(conn net.Conn, username string) {
-	room := connM.GetConnectionManager().GetRoomByConnection(conn)
+func SendUserState(room *roomM.Room, username string) bool {
 
-	for {
-		time.Sleep(1 * time.Second)
-		puser, exists := room.PlaylistManager.GetUserPlaystate(username)
-		latencyCalculation := room.GetLatencyCalculation(username)
-		if exists != true {
-			break
-		}
-		sendStateMessage(conn, puser.Position, puser.Paused, puser.DoSeek, latencyCalculation, puser.SetBy)
+	puser, exists := room.PlaylistManager.GetUserPlaystate(username)
+	if !exists {
+		return true
 	}
+	latencyCalculation := room.GetLatencyCalculation(username)
 
+	conn := room.GetConnectionByUsername(username).Conn
+
+	sendStateMessage(room, conn, puser.Position, puser.Paused, puser.DoSeek, latencyCalculation, puser.SetBy)
+	return false
 }
 
-func sendStateMessage(conn net.Conn, position, paused, doSeek, latencyCalculation, stateChange interface{}) {
-	room := connM.GetConnectionManager().GetRoomByConnection(conn)
+func sendStateMessage(room *roomM.Room, conn net.Conn, position, paused, doSeek, latencyCalculation, stateChange interface{}) {
+
 	if room == nil {
 		return
 	}
@@ -104,18 +104,32 @@ func sendStateMessage(conn net.Conn, position, paused, doSeek, latencyCalculatio
 
 	// send the state message to all users in the room
 
-	utils.SendJSONMessage(conn, stateMessage)
+	utils.SendJSONMessage(conn, stateMessage, room.PlaylistManager, room.GetUsernameByConnection(conn))
 }
 
 func HandleStatePing(ping map[string]interface{}) (float64, float64) {
-	messageAge, ok := ping["messageAge"].(float64)
-	if !ok {
-		messageAge = 0
-	}
+	/*
+		General client ping (no file open / paused at beginning)
+
+		Client >> {"State": {"ping": {"clientRtt": 0, "clientLatencyCalculation": 1394590473.585, "latencyCalculation": 1394590688.962084}, "playstate": {"paused": true, "position": 0.0}}}
+
+		General client ping (file playing)
+
+		Client >> {"State": {"ping": {"clientRtt": 0, "clientLatencyCalculation": 1394590473.585, "latencyCalculation": 1394590688.962084}, "playstate": {"paused": false, "position": 2.236}}}
+
+		calculate the time the message was sent using the client's latency calculation and the server's time
+
+		Look at the code to see how it works. ‘[client]LatencyCalculation’  is a timestamp based on the time in seconds since the epoch as a floating point number. ‘clientRtt’ is round-trip time (i.e. ping time). In older versions Syncplay used ‘yourLatency’ and ‘senderLatency’ but not ‘serverRtt’.
+	*/
+
+	// TODO: Implement client latency calculation using last message time and current time (messageAge)
 	latencyCalculation, ok := ping["latencyCalculation"].(float64)
 	if !ok {
 		latencyCalculation = 0
 	}
+
+	messageAge := float64(time.Now().UnixNano()) / 1e9 // Convert to seconds
+	latencyCalculation = (latencyCalculation + messageAge) / 2
 
 	return messageAge, latencyCalculation
 }
@@ -127,11 +141,17 @@ var globalState = struct {
 	setBy    interface{}
 }{}
 
-func UpdateGlobalState(position, paused, doSeek, setBy interface{}, messageAge float64, latencyCalculation float64) {
+func UpdateGlobalState(conn net.Conn, position, paused, doSeek, setBy interface{}, messageAge float64, latencyCalculation float64) {
+	cm := connM.GetConnectionManager()
+	room := cm.GetRoomByConnection(conn)
+
 	globalState.position = position.(float64)
 	globalState.paused = paused.(bool)
 	globalState.doSeek = doSeek.(bool)
 	globalState.setBy = setBy
+
+	// store the user's playstate
+	room.PlaylistManager.SetUserPlaystate(room.GetUsernameByConnection(conn), position.(float64), paused.(bool), doSeek.(bool), setBy.(string), messageAge)
 
 }
 

@@ -18,6 +18,7 @@ type Connection struct {
 	readyState ready.ReadyState
 
 	LatencyCalculation float64
+	StateEvent         *event.ManagedEvent
 }
 
 type Room struct {
@@ -29,7 +30,8 @@ type Room struct {
 
 	RoomState roomState
 
-	stateEvent *event.TimedEvent
+	stateEventManager *event.EventManager
+	stateEventTicker  *event.Ticker
 }
 
 type roomState struct {
@@ -40,11 +42,12 @@ type roomState struct {
 
 func NewRoom(name string) *Room {
 	return &Room{
-		Name:            name,
-		Users:           make([]*Connection, 0),
-		ReadyManager:    ready.NewReadyManager(),
-		PlaylistManager: playlistsM.NewPlaylistManager(),
-		stateEvent:      event.NewTimedEvent(1),
+		Name:              name,
+		Users:             make([]*Connection, 0),
+		ReadyManager:      ready.NewReadyManager(),
+		PlaylistManager:   playlistsM.NewPlaylistManager(),
+		stateEventManager: event.NewEventManager(),
+		stateEventTicker:  event.NewTicker(1, true),
 	}
 }
 
@@ -104,35 +107,31 @@ func (r *Room) RemoveConnection(conn net.Conn) {
 
 	for i, connection := range r.Users {
 		if connection.Conn == conn {
+
 			// delete ready state
 			r.ReadyManager.RemoveUserReadyState(connection.Username)
 			// delete playstate
 			r.PlaylistManager.RemoveUserPlaystate(connection.Username)
 			// remove connection
 			r.Users = append(r.Users[:i], r.Users[i+1:]...)
-			r.stateEvent.Publish(conn)
+
+			if connection.StateEvent != nil {
+				connection.StateEvent.Stop()
+			}
+
 			break
 		}
 	}
 }
 
-func (r *Room) SubscribeToStateChanges() chan interface{} {
-	return r.stateEvent.Subscribe()
+// GetStateEventManager returns the state event manager
+func (r *Room) GetStateEventManager() *event.EventManager {
+	return r.stateEventManager
 }
 
-/*
-usage:
-ch := room.SubscribeToStateChanges()
-for {
-	select {
-	case state := <-ch:
-		// do something with state
-	}
-}
-*/
-
-func (r *Room) UnsubscribeFromStateChanges(ch chan interface{}) {
-	r.stateEvent.Unsubscribe(ch)
+// GetStateEventTicker returns the state event ticker
+func (r *Room) GetStateEventTicker() *event.Ticker {
+	return r.stateEventTicker
 }
 
 // list rooms
@@ -163,19 +162,6 @@ func (r *Room) PrintReadyStates() {
 			fmt.Printf("Username: %s, IsReady: %t, ManuallyInitiated: %t\n", state.Username, state.IsReady, state.ManuallyInitiated)
 		}
 	}
-}
-
-// play state
-func (r *Room) SetUserPlaystate(username string, position float64, paused bool, doSeek bool, setBy string) {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	// check if playstate exists if not create it
-	if _, exists := r.PlaylistManager.GetUserPlaystate(username); !exists {
-		r.PlaylistManager.SetUserPlaystate(username, 0, true, false, "")
-	}
-
-	r.PlaylistManager.SetUserPlaystate(username, position, paused, doSeek, setBy)
 }
 
 // get play state
