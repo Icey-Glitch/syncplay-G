@@ -57,6 +57,7 @@
               wireshark
               tcpdump
               tmux
+              delve
 
               # Development Tools
               hotspot

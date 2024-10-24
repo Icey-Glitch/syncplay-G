@@ -47,6 +47,12 @@ func (cm *ConnectionManager) AddConnection(username, roomName string, state inte
 		State:    state,
 		Conn:     conn,
 		RoomName: roomName,
+
+		ClientLatencyCalculation: &roomM.ClientLatencyCalculation{
+			ArivalTime: float64(0),
+			ClientTime: float64(0),
+			ClientRtt:  float64(0),
+		},
 	}
 
 	room := cm.rooms[roomName]
@@ -62,6 +68,8 @@ func (cm *ConnectionManager) RemoveConnection(conn net.Conn) {
 	for _, room := range cm.rooms {
 		room.RemoveConnection(conn)
 	}
+
+	conn.Close()
 
 	cm.connectionEvent.Publish(conn)
 }

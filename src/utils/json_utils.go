@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"fmt"
 	"net"
-	"time"
+	"sync"
 
 	"github.com/goccy/go-json"
 
 	connM "github.com/Icey-Glitch/Syncplay-G/mngr/conn"
-	PlaylistM "github.com/Icey-Glitch/Syncplay-G/mngr/playlists"
+	playlistsM "github.com/Icey-Glitch/Syncplay-G/mngr/playlists"
 )
 
 // InsertSpaceAfterColons inserts a space after each colon in the JSON byte slice
@@ -28,24 +28,31 @@ func InsertSpaceAfterColons(jsonData []byte) []byte {
 }
 
 // SendJSONMessage marshals the message to JSON, inserts spaces after colons, and sends it to the connection
-func SendJSONMessage(conn net.Conn, message interface{}, playlistManager *PlaylistM.PlaylistManager, username string) {
-	jsonData, err := json.Marshal(message)
+var sendMutex sync.Mutex
+
+func SendJSONMessage(conn net.Conn, message interface{}, playlistManager *playlistsM.PlaylistManager, username string) error {
+	sendMutex.Lock()
+	defer sendMutex.Unlock()
+
+	if conn == nil {
+		return fmt.Errorf("connection is nil")
+	}
+
+	data, err := json.Marshal(message)
 	if err != nil {
-		fmt.Println("Error marshaling message:", err)
-		return
+		return fmt.Errorf("error marshalling JSON message: %w", err)
 	}
 
-	jsonData = append(jsonData, '\x0d', '\x0a')
+	data = append(data, '\x0d', '\x0a')
 
-	// convert to byte slice and send
-	payload := []byte(jsonData)
+	payload := []byte(data)
 
-	if _, err := conn.Write(payload); err != nil {
-		fmt.Println("Error sending message:", err)
-	} else {
-		playlistManager.SetLastMessageAge(username, float64(time.Now().UnixNano())/1e9)
-		//fmt.Printf("Sent message: %s\n", payload)
+	_, err = conn.Write(payload)
+	if err != nil {
+		return fmt.Errorf("error writing JSON message to connection: %w", err)
 	}
+
+	return nil
 }
 
 func SendJSONMessageMultiCast(message interface{}, roomName string) {

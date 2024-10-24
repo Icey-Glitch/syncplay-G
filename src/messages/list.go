@@ -3,9 +3,9 @@ package messages
 import (
 	"fmt"
 	"net"
+	"sync"
 
 	roomM "github.com/Icey-Glitch/Syncplay-G/mngr/room"
-	"github.com/Icey-Glitch/Syncplay-G/utils"
 )
 
 // FileInfo represents the file information.
@@ -31,48 +31,62 @@ type ListResponse struct {
 
 // handleListRequest handles the "List" request and returns the response.
 func HandleListRequest(conn net.Conn, room *roomM.Room) {
+	fmt.Println("List request received")
+
+	// Initialize the list map
+	list := make(map[string]RoomInfo)
+
 	// Retrieve user states from the PlaylistManager
-	userStates, err := room.PlaylistManager.GetUsers()
-	if err != true {
-		fmt.Println("Error getting user states from the PlaylistManager")
+	users, valid := room.PlaylistManager.GetUsers()
+	if !valid {
+		fmt.Println("Error: Failed to retrieve user states from the PlaylistManager")
 		return
 	}
 
-	// Construct the players map
-	players := make(map[string]PlayerInfo)
-	for username, userState := range userStates {
-		fileInfo := FileInfo{
-			Duration: userState.Duration,
-			Name:     userState.Name,
-			Size:     userState.Size,
-		}
+	// Use a mutex to ensure thread-safe access to shared resources
+	var mutex sync.RWMutex
 
+	// Iterate over the users and construct the room info
+	for _, user := range users {
+		fileInfo := FileInfo{
+			Duration: user.Duration,
+			Name:     user.Name,
+			Size:     user.Size,
+		}
 		playerInfo := PlayerInfo{
 			File: fileInfo,
 		}
-
-		// Add position if it exists
-		if userState.Position != 0 {
-			playerInfo.Position = &userState.Position
+		if user.Position != 0 {
+			playerInfo.Position = &user.Position
 		}
 
-		players[username] = playerInfo
+		// Lock the mutex for writing
+		mutex.Lock()
+		// Check if the room already exists in the list
+		if _, exists := list[room.Name]; !exists {
+			list[room.Name] = make(RoomInfo)
+		}
+
+		// Add the player info to the room info
+		list[room.Name][user.Username] = playerInfo
+		mutex.Unlock()
 	}
-
-	// Retrieve the room name
-	roomName := room.Name
-
-	// Construct the room info
-	roomInfo := RoomInfo(players)
 
 	// Construct the list response
-	listResponse := ListResponse{
-		List: map[string]RoomInfo{
-			roomName: roomInfo,
-		},
+	response := ListResponse{
+		List: list,
 	}
 
-	// Send the response
-	utils.SendJSONMessage(conn, listResponse, room.PlaylistManager, room.GetUsernameByConnection(conn))
+	fmt.Println(response)
+	// Send the response back to the client
+	/*
+		err := utils.SendJSONMessage(conn, responseBytes, room.PlaylistManager, room.GetUsernameByConnection(conn))
+		if err != nil {
+			fmt.Println("Error: Failed to send list response to", room.GetUsernameByConnection(conn), ":", err)
+			return
+		}
+
+		fmt.Println("List response successfully sent to", room.GetUsernameByConnection(conn))
+	*/
 
 }

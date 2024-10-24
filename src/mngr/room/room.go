@@ -22,8 +22,17 @@ type Connection struct {
 	RoomName   string
 	readyState ready.ReadyState
 
-	LatencyCalculation float64
-	StateEvent         *event.ManagedEvent
+	// client latency calculation struct
+	ClientLatencyCalculation *ClientLatencyCalculation
+
+	StateEvent *event.ManagedEvent
+}
+
+type ClientLatencyCalculation struct {
+	ArivalTime               float64
+	ClientTime               float64
+	ClientRtt                float64
+	clientLatencyCalculation float64
 }
 
 type Room struct {
@@ -104,6 +113,12 @@ func (r *Room) AddConnection(connection *Connection) {
 
 	r.Users = append(r.Users, connection)
 
+	// add playstate
+	err := r.PlaylistManager.CreateUserPlaystate(connection.Username)
+	if err != nil {
+		fmt.Println("Failed to create user playstate " + err.Error())
+		return
+	}
 }
 
 func (r *Room) RemoveConnection(conn net.Conn) {
@@ -116,7 +131,11 @@ func (r *Room) RemoveConnection(conn net.Conn) {
 			// delete ready state
 			r.ReadyManager.RemoveUserReadyState(connection.Username)
 			// delete playstate
-			r.PlaylistManager.RemoveUserPlaystate(connection.Username)
+			err := r.PlaylistManager.RemoveUserPlaystate(connection.Username)
+			if err != nil {
+				fmt.Println("failed to remove UserPlaystate " + err.Error())
+				return
+			}
 			// remove connection
 			r.Users = append(r.Users[:i], r.Users[i+1:]...)
 
@@ -170,50 +189,84 @@ func (r *Room) PrintReadyStates() {
 }
 
 // get play state
-func (r *Room) GetUserPlaystate(username string) (interface{}, bool) {
+func (r *Room) GetUserPlaystate(username string) (interface{}, bool, error) {
+	if username == "" {
+		return nil, false, fmt.Errorf("username cannot be empty")
+	}
+
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
-	return r.PlaylistManager.GetUserPlaystate(username)
+	playstate, ok := r.PlaylistManager.GetUserPlaystate(username)
+	if !ok {
+		return nil, false, fmt.Errorf("user playstate not found for username: %s", username)
+	}
+
+	return playstate, true, nil
 }
 
 // room state
-func (r *Room) GetRoomState() roomState {
+func (r *Room) GetRoomState() (roomState, error) {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
-	return r.RoomState
+	if (roomState{}) == r.RoomState {
+		return roomState{}, fmt.Errorf("room state is empty")
+	}
+
+	return r.RoomState, nil
 }
 
-func (r *Room) SetRoomState(state roomState) {
+func (r *Room) SetRoomState(state roomState) error {
+	if (roomState{}) == state {
+		return fmt.Errorf("state cannot be empty")
+	}
+
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
 	r.RoomState = state
-
+	return nil
 }
 
-// set user latency calculation
-func (r *Room) SetUserLatencyCalculation(username string, latencyCalculation float64) {
+// SetUserLatencyCalculation sets the client latency calculation struct
+func (r *Room) SetUserLatencyCalculation(username string, arivalTime float64, clientTime float64, clientRtt float64, clientLatencyCalculation float64) error {
+	if username == "" {
+		return fmt.Errorf("username cannot be empty")
+	}
+
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	for _, connection := range r.Users {
-		if connection.Username == username {
-			connection.LatencyCalculation = latencyCalculation
-		}
+	connection := r.GetConnectionByUsername(username)
+	if connection == nil {
+		return fmt.Errorf("connection not found for username: %s", username)
 	}
+
+	if connection.ClientLatencyCalculation == nil {
+		connection.ClientLatencyCalculation = &ClientLatencyCalculation{}
+	}
+
+	connection.ClientLatencyCalculation.ArivalTime = arivalTime
+	connection.ClientLatencyCalculation.ClientTime = clientTime
+	connection.ClientLatencyCalculation.ClientRtt = clientRtt
+	connection.ClientLatencyCalculation.clientLatencyCalculation = clientLatencyCalculation
+
+	return nil
 }
 
-// get user latency calculation
-func (r *Room) GetLatencyCalculation(username string) float64 {
+// GetUsersLatencyCalculation returns the client latency calculation struct
+func (r *Room) GetUsersLatencyCalculation(connection *Connection) (ClientLatencyCalculation, error) {
+	if connection == nil {
+		return ClientLatencyCalculation{}, fmt.Errorf("connection cannot be nil")
+	}
+
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
-	for _, connection := range r.Users {
-		if connection.Username == username {
-			return connection.LatencyCalculation
-		}
+	if connection.ClientLatencyCalculation == nil {
+		return ClientLatencyCalculation{}, fmt.Errorf("client latency calculation is nil")
 	}
-	return 0
+
+	return *connection.ClientLatencyCalculation, nil
 }

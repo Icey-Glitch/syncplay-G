@@ -116,10 +116,23 @@ func handleStartTLSMessage(conn net.Conn) {
 		0x4c, 0x53, 0x22, 0x3a, 0x20, 0x22, 0x66, 0x61, 0x6c, 0x73, 0x65, 0x22, 0x7d, 0x7d, 0x0d, 0x0a,
 	}
 
+	/*
+		jsonData := []byte(`{"TLS": {"startTLS": "false"}}`)
+	*/
+
+	// erase user with duplicate connection if the connection makes another startTLS request
+	cm := connM.GetConnectionManager()
+	room := cm.GetRoomByConnection(conn)
+	if room != nil {
+		fmt.Println("Removing connection from room")
+		cm.RemoveConnection(conn)
+	}
+
 	fmt.Println("Sending StartTLS response: %x", payload)
 	if _, err := conn.Write(payload); err != nil {
 		fmt.Println("Error sending StartTLS response:", err)
 	}
+
 }
 
 func handleHelloMessage(helloMsg interface{}, encoder *json.Encoder, conn net.Conn) {
@@ -157,9 +170,15 @@ func handleHelloMessage(helloMsg interface{}, encoder *json.Encoder, conn net.Co
 	sendSessionInformation(conn, username, roomName)
 
 	response := messages.CreateHelloResponse(username, "1.7.3", roomName)
-	utils.SendJSONMessage(conn, response, cm.GetRoom(roomName).PlaylistManager, username)
+	err := utils.SendJSONMessage(conn, response, cm.GetRoom(roomName).PlaylistManager, username)
+	if err != nil {
+		fmt.Println("failed to send hello to " + username + " " + err.Error())
+		return
+	}
 
 	messages.SendInitialState(conn, username)
+
+	setupStatusScheduler(roomName, username)
 
 }
 
@@ -219,7 +238,7 @@ func handleStateMessage(stateMsg interface{}, encoder *json.Encoder, conn net.Co
 	cm := connM.GetConnectionManager()
 	user := cm.GetRoomByConnection(conn).GetUsernameByConnection(conn)
 	var position, paused, doSeek, setBy interface{}
-	var messageAge, latencyCalculation float64
+	var messageAge, latencyCalculation, clientlatency, rtt float64
 	clientIgnoringOnTheFly := 0
 
 	stateData, ok := stateMsg.(map[string]interface{})
@@ -243,9 +262,13 @@ func handleStateMessage(stateMsg interface{}, encoder *json.Encoder, conn net.Co
 	}
 
 	if ping, ok := stateData["ping"].(map[string]interface{}); ok {
-		messageAge, latencyCalculation = messages.HandleStatePing(ping)
+		rtt, latencyCalculation, clientlatency = messages.HandleStatePing(ping)
 		// store latency calculation in room
-		cm.GetRoomByConnection(conn).SetUserLatencyCalculation(user, latencyCalculation)
+		err := cm.GetRoomByConnection(conn).SetUserLatencyCalculation(user, float64(time.Now().UnixNano())/1e9, clientlatency, rtt, latencyCalculation)
+		if err != nil {
+			fmt.Println("Error storing user latency calculation")
+		}
+		fmt.Println("stored latency calculation")
 	}
 
 	if position != nil && paused != nil && clientIgnoringOnTheFly == 0 {
@@ -257,6 +280,7 @@ func handleStateMessage(stateMsg interface{}, encoder *json.Encoder, conn net.Co
 }
 
 func handleChatMessage(chatData interface{}, encoder *json.Encoder, conn net.Conn) {
+	fmt.Println("Handling chat message")
 	cm := connM.GetConnectionManager()
 	msg, ok := chatData.(string)
 	if !ok {
@@ -270,9 +294,12 @@ func handleChatMessage(chatData interface{}, encoder *json.Encoder, conn net.Con
 
 func sendSessionInformation(conn net.Conn, username, roomName string) {
 	messages.SendReadyMessageInit(conn, username)
-	messages.SendPlaylistChangeMessage(conn, roomName)
+	//messages.SendPlaylistChangeMessage(conn, roomName)
 	messages.SendPlaylistIndexMessage(conn, roomName)
+}
 
+func setupStatusScheduler(roomName, username string) {
+	fmt.Println("Setting up status scheduler")
 	room := connM.GetConnectionManager().GetRoom(roomName)
 	if room == nil {
 		fmt.Println("Error: Room not found")
@@ -286,5 +313,5 @@ func sendSessionInformation(conn net.Conn, username, roomName string) {
 	managedEvent := em.NewManagedEvent(1, messages.SendUserState, true, params, room.GetStateEventTicker())
 
 	managedEvent.Start()
-
+	fmt.Println("Status scheduler started")
 }

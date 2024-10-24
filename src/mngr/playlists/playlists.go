@@ -1,6 +1,7 @@
 package playlists
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/Icey-Glitch/Syncplay-G/mngr/event"
@@ -46,11 +47,45 @@ func NewPlaylistManager() *PlaylistManager {
 	}
 }
 
-func (pm *PlaylistManager) SetUserPlaystate(username string, position float64, paused bool, doSeek bool, setBy string, messageAge float64) {
+// CreateUserPlaystate creates a new user in the playlist
+func (pm *PlaylistManager) CreateUserPlaystate(username string) error {
+	if username == "" {
+		return fmt.Errorf("username cannot be empty")
+	}
+
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
-	if doSeek != pm.playlist.Users[username].DoSeek {
+	_, exists := pm.playlist.Users[username]
+	if exists {
+		return fmt.Errorf("user %s already exists in the playlist", username)
+	}
+
+	pm.playlist.Users[username] = User{
+		Username: username,
+		Position: 0,
+		Paused:   true,
+		DoSeek:   false,
+	}
+
+	pm.stateEvent.Publish(pm.playlist.Users[username])
+	return nil
+}
+
+func (pm *PlaylistManager) SetUserPlaystate(username string, position float64, paused bool, doSeek bool, setBy string, messageAge float64) error {
+	if username == "" {
+		return fmt.Errorf("username cannot be empty")
+	}
+
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+
+	user, exists := pm.playlist.Users[username]
+	if !exists {
+		return fmt.Errorf("user %s does not exist in the playlist", username)
+	}
+
+	if doSeek != user.DoSeek {
 		pm.SetUsersDoSeek(doSeek, messageAge)
 	}
 
@@ -65,28 +100,48 @@ func (pm *PlaylistManager) SetUserPlaystate(username string, position float64, p
 	}
 
 	pm.stateEvent.Publish(pm.playlist.Users[username])
+	return nil
 }
 
 // RemoveUserPlaystate removes the user from the playlist
-func (pm *PlaylistManager) RemoveUserPlaystate(username string) {
+func (pm *PlaylistManager) RemoveUserPlaystate(username string) error {
+	if username == "" {
+		return fmt.Errorf("username cannot be empty")
+	}
+
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
+
+	_, exists := pm.playlist.Users[username]
+	if !exists {
+		return fmt.Errorf("user %s does not exist in the playlist", username)
+	}
 
 	delete(pm.playlist.Users, username)
 	pm.stateEvent.Publish(username)
+	return nil
 }
 
-func (pm *PlaylistManager) SetUserFile(username string, duration float64, name string, size float64) {
+func (pm *PlaylistManager) SetUserFile(username string, duration float64, name string, size float64) error {
+	if username == "" {
+		return fmt.Errorf("username cannot be empty")
+	}
+
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
-	user := pm.playlist.Users[username]
+	user, exists := pm.playlist.Users[username]
+	if !exists {
+		return fmt.Errorf("user %s does not exist in the playlist", username)
+	}
+
 	user.Duration = duration
 	user.Name = name
 	user.Size = size
-	pm.playlist.Users[username] = user
 
-	pm.stateEvent.Publish(pm.playlist.Users[username])
+	pm.playlist.Users[username] = user
+	pm.stateEvent.Publish(user)
+	return nil
 }
 
 func (pm *PlaylistManager) GetUserPlaystate(username string) (User, bool) {
@@ -109,16 +164,12 @@ func (pm *PlaylistManager) SetUsersDoSeek(doSeek bool, age float64) {
 	}
 }
 
-// GetUsers returns a map of all users in the playlist
+// GetUsers returns a list of users in the playlist
 func (pm *PlaylistManager) GetUsers() (map[string]User, bool) {
-	if len(pm.playlist.Users) == 0 {
-		return nil, false
-	}
-
 	pm.mutex.RLock()
 	defer pm.mutex.RUnlock()
 
-	return pm.playlist.Users, true
+	return pm.playlist.Users, len(pm.playlist.Users) > 0
 
 }
 

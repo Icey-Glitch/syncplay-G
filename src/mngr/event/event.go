@@ -163,7 +163,6 @@ func (e *ManagedEvent) Start() {
 					e.Stop()
 					return
 				}
-
 			}
 		}
 	}()
