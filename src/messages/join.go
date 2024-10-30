@@ -19,7 +19,7 @@ func HandleJoinMessage(conn net.Conn, msg map[string]interface{}) {
 
 	room := cm.GetRoom(roomName)
 	if room == nil {
-		cm.CreateRoom(roomName)
+		_ = cm.CreateRoom(roomName)
 	}
 
 	room.AddConnection(&roomM.Connection{

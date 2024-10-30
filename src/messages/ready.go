@@ -2,9 +2,7 @@ package messages
 
 import (
 	"fmt"
-	"net"
-
-	connM "github.com/Icey-Glitch/Syncplay-G/mngr/conn"
+	roomM "github.com/Icey-Glitch/Syncplay-G/mngr/room"
 	"github.com/Icey-Glitch/Syncplay-G/utils"
 )
 
@@ -23,14 +21,13 @@ type ClientReadyMessage struct {
 	ManuallyInitiated bool `json:"manuallyInitiated"`
 }
 
-func SendReadyMessageInit(conn net.Conn, username string) {
-	cm := connM.GetConnectionManager()
-	room := cm.GetRoomByConnection(conn)
+func SendReadyMessageInit(connection roomM.Connection) {
+	room := connection.Owner
 	if room == nil {
 		return
 	}
 
-	room.SetUserReadyState(username, false, false)
+	room.SetUserReadyState(connection.Username, false, false)
 
 	readyMessage := ReadyMessage{
 		Set: struct {
@@ -45,7 +42,7 @@ func SendReadyMessageInit(conn net.Conn, username string) {
 				IsReady           bool   `json:"isReady"`
 				ManuallyInitiated bool   `json:"manuallyInitiated"`
 			}{
-				Username:          username,
+				Username:          connection.Username,
 				IsReady:           false,
 				ManuallyInitiated: false,
 			},
@@ -55,9 +52,7 @@ func SendReadyMessageInit(conn net.Conn, username string) {
 	utils.SendJSONMessageMultiCast(readyMessage, room.Name)
 }
 
-func HandleReadyMessage(ready map[string]interface{}, conn net.Conn) {
-	// Print the incoming message
-	cm := connM.GetConnectionManager()
+func HandleReadyMessage(ready map[string]interface{}, connection roomM.Connection) {
 
 	// Unmarshal the incoming JSON data into ClientReadyMessage struct
 	var clientReadyMessage ClientReadyMessage
@@ -67,27 +62,26 @@ func HandleReadyMessage(ready map[string]interface{}, conn net.Conn) {
 	manuallyInitiated := clientReadyMessage.ManuallyInitiated
 
 	// Get the room and user associated with the connection
-	room := cm.GetRoomByConnection(conn)
+	room := connection.Owner
 	if room == nil {
 		fmt.Println("Error: Room not found for connection")
 		return
 	}
 
 	// Assuming username is extracted from the connection or another source
-	username := room.GetUsernameByConnection(conn)
-	if username == "" {
+	if connection.Username == "" {
 		fmt.Println("Error: Username not found for connection")
 		return
 	}
 
 	// Set the user ready state
-	room.SetUserReadyState(username, isReady, manuallyInitiated)
+	room.SetUserReadyState(connection.Username, isReady, manuallyInitiated)
 
 	// Send the ready message to all connections in the room
 	readyMessage := map[string]interface{}{
 		"Set": map[string]interface{}{
 			"ready": map[string]interface{}{
-				"username":          username,
+				"username":          connection.Username,
 				"isReady":           isReady,
 				"manuallyInitiated": manuallyInitiated,
 			},

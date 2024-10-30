@@ -1,0 +1,6 @@
+{
+    "github.copilot.chat.experimental.temporalContext.enabled": true,
+    "github.copilot.enable": {
+        "markdown": true
+    }
+}

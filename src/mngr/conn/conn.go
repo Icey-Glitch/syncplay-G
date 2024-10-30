@@ -38,7 +38,7 @@ func GetConnectionManager() *ConnectionManager {
 
 var connectionManager *ConnectionManager
 
-func (cm *ConnectionManager) AddConnection(username, roomName string, state interface{}, conn net.Conn) {
+func (cm *ConnectionManager) AddConnection(username, roomName string, state interface{}, conn net.Conn) *roomM.Connection {
 	cm.mutex.Lock()
 	defer cm.mutex.Unlock()
 
@@ -53,12 +53,15 @@ func (cm *ConnectionManager) AddConnection(username, roomName string, state inte
 			ClientTime: float64(0),
 			ClientRtt:  float64(0),
 		},
+
+		Owner: cm.rooms[roomName],
 	}
 
 	room := cm.rooms[roomName]
 	room.AddConnection(connection)
 
 	cm.connectionEvent.Publish(connection)
+	return connection
 }
 
 func (cm *ConnectionManager) RemoveConnection(conn net.Conn) {
@@ -74,11 +77,12 @@ func (cm *ConnectionManager) RemoveConnection(conn net.Conn) {
 	cm.connectionEvent.Publish(conn)
 }
 
-func (cm *ConnectionManager) CreateRoom(roomName string) {
+func (cm *ConnectionManager) CreateRoom(roomName string) *roomM.Room {
 	cm.mutex.Lock()
 	defer cm.mutex.Unlock()
 
 	cm.rooms[roomName] = roomM.NewRoom(roomName)
+	return cm.rooms[roomName]
 }
 
 func (cm *ConnectionManager) GetRoom(roomName string) *roomM.Room {

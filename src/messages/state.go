@@ -5,7 +5,6 @@ import (
 	"net"
 	"time"
 
-	connM "github.com/Icey-Glitch/Syncplay-G/mngr/conn"
 	roomM "github.com/Icey-Glitch/Syncplay-G/mngr/room"
 	"github.com/Icey-Glitch/Syncplay-G/utils"
 )
@@ -33,12 +32,12 @@ type UserState struct {
 	SetBy    interface{}
 }
 
-func SendInitialState(conn net.Conn, room *roomM.Room, username string) {
-	if room == nil {
+func SendInitialState(connection roomM.Connection) {
+	if connection.Owner == nil {
 		return
 	}
 
-	if len(room.Users) == 0 {
+	if len(connection.Owner.Users) == 0 {
 		stateMessage := StateMessage{}
 		stateMessage.State.Ping.LatencyCalculation = float64(time.Now().UnixNano()) / 1e9
 		stateMessage.State.Ping.ServerRtt = 0
@@ -47,7 +46,7 @@ func SendInitialState(conn net.Conn, room *roomM.Room, username string) {
 		stateMessage.State.Playstate.Paused = true
 		stateMessage.State.Playstate.SetBy = "Nobody"
 
-		err := utils.SendJSONMessage(conn, stateMessage, room.PlaylistManager, username)
+		err := utils.SendJSONMessage(connection.Conn, stateMessage, connection.Owner.PlaylistManager, connection.Username)
 		if err != nil {
 			fmt.Println("Error sending initial state message:", err)
 			return
@@ -55,7 +54,7 @@ func SendInitialState(conn net.Conn, room *roomM.Room, username string) {
 		return
 	}
 
-	roomState := room.RoomState
+	roomState := connection.Owner.RoomState
 	stateMessage := StateMessage{}
 	stateMessage.State.Ping.LatencyCalculation = float64(time.Now().UnixNano()) / 1e9
 	stateMessage.State.Ping.ServerRtt = 0
@@ -63,28 +62,22 @@ func SendInitialState(conn net.Conn, room *roomM.Room, username string) {
 	stateMessage.State.Playstate.Position = roomState.Position
 	stateMessage.State.Playstate.Paused = roomState.IsPaused
 
-	err := utils.SendJSONMessage(conn, stateMessage, room.PlaylistManager, username)
+	err := utils.SendJSONMessage(connection.Conn, stateMessage, connection.Owner.PlaylistManager, connection.Username)
 	if err != nil {
 		fmt.Println("Error sending initial state message:", err)
 		return
 	}
 }
 
-func SendUserState(room *roomM.Room, username string) bool {
-	fmt.Println("Sending user state")
-	connection := room.GetConnectionByUsername(username)
-	if connection == nil {
-		fmt.Println("Error: Connection not found for username:", username)
-		return true
-	}
+func SendUserState(connection roomM.Connection) bool {
 
-	puser, exists := room.PlaylistManager.GetUserPlaystate(username)
+	puser, exists := connection.Owner.PlaylistManager.GetUserPlaystate(connection.Username)
 	if !exists {
-		fmt.Println("Error: User does not exist in the playlist:", username)
+		fmt.Println("Error: User does not exist in the playlist:", connection.Username)
 		return true
 	}
 
-	latencyCalculation, err := room.GetUsersLatencyCalculation(connection)
+	latencyCalculation, err := connection.Owner.GetUsersLatencyCalculation(&connection)
 	if err != nil {
 		fmt.Println("Error getting user latency calculation:", err)
 		return true
@@ -92,7 +85,7 @@ func SendUserState(room *roomM.Room, username string) bool {
 
 	processingTime := float64(time.Now().UnixNano())/1e9 - latencyCalculation.ArivalTime
 
-	err = sendStateMessage(room, connection.Conn, puser.Position, puser.Paused, puser.DoSeek, processingTime, puser.SetBy, latencyCalculation.ClientTime, username)
+	err = sendStateMessage(connection.Owner, connection.Conn, puser.Position, puser.Paused, puser.DoSeek, processingTime, puser.SetBy, latencyCalculation.ClientTime, connection.Username)
 	if err != nil {
 		fmt.Println("Error sending state message:", err)
 		return true
@@ -170,9 +163,9 @@ var globalState = struct {
 	setBy    interface{}
 }{}
 
-func UpdateGlobalState(conn net.Conn, position, paused, doSeek, setBy interface{}, messageAge float64, latencyCalculation float64) {
-	cm := connM.GetConnectionManager()
-	room := cm.GetRoomByConnection(conn)
+func UpdateGlobalState(connection roomM.Connection, position, paused, doSeek, setBy interface{}, messageAge float64, latencyCalculation float64) {
+
+	room := connection.Owner
 
 	globalState.position = position.(float64)
 	globalState.paused = paused.(bool)
@@ -180,7 +173,7 @@ func UpdateGlobalState(conn net.Conn, position, paused, doSeek, setBy interface{
 	globalState.setBy = setBy
 
 	// store the user's playstate
-	error := room.PlaylistManager.SetUserPlaystate(room.GetUsernameByConnection(conn), position.(float64), paused.(bool), doSeek.(bool), setBy.(string), messageAge)
+	error := room.PlaylistManager.SetUserPlaystate(connection.Username, position.(float64), paused.(bool), doSeek.(bool), setBy.(string), messageAge)
 	if error != nil {
 		fmt.Println("Error storing user playstate")
 	}

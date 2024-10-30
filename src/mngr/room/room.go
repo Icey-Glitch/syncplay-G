@@ -26,6 +26,7 @@ type Connection struct {
 	ClientLatencyCalculation *ClientLatencyCalculation
 
 	StateEvent *event.ManagedEvent
+	Owner      *Room
 }
 
 type ClientLatencyCalculation struct {
@@ -71,6 +72,19 @@ func GetRoomByConnection(conn net.Conn, rooms map[string]*Room) *Room {
 			if connection.Conn == conn {
 				return room
 			}
+		}
+	}
+	return nil
+}
+
+// get connection by conn
+func (r *Room) GetConnectionByConn(conn net.Conn) *Connection {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	for _, connection := range r.Users {
+		if connection.Conn == conn {
+			return connection
 		}
 	}
 	return nil
@@ -230,18 +244,13 @@ func (r *Room) SetRoomState(state roomState) error {
 }
 
 // SetUserLatencyCalculation sets the client latency calculation struct
-func (r *Room) SetUserLatencyCalculation(username string, arivalTime float64, clientTime float64, clientRtt float64, clientLatencyCalculation float64) error {
-	if username == "" {
-		return fmt.Errorf("username cannot be empty")
+func (r *Room) SetUserLatencyCalculation(connection *Connection, arivalTime float64, clientTime float64, clientRtt float64, clientLatencyCalculation float64) error {
+	if connection == nil {
+		return fmt.Errorf("connection cannot be nil")
 	}
 
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-
-	connection := r.GetConnectionByUsername(username)
-	if connection == nil {
-		return fmt.Errorf("connection not found for username: %s", username)
-	}
 
 	if connection.ClientLatencyCalculation == nil {
 		connection.ClientLatencyCalculation = &ClientLatencyCalculation{}

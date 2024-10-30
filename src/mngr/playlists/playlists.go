@@ -153,7 +153,7 @@ func (pm *PlaylistManager) GetUserPlaystate(username string) (User, bool) {
 }
 
 // SetUsersDoSeek sets all users in the playlist to doSeek
-func (pm *PlaylistManager) SetUsersDoSeek(doSeek bool, age float64) {
+func (pm *PlaylistManager) SetUsersDoSeek(doSeek bool, age float64) error {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
@@ -162,6 +162,7 @@ func (pm *PlaylistManager) SetUsersDoSeek(doSeek bool, age float64) {
 		pm.playlist.Paused = true
 		pm.playlist.Users = make(map[string]User)
 	}
+	return nil
 }
 
 // GetUsers returns a list of users in the playlist

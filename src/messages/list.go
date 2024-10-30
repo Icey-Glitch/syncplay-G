@@ -2,7 +2,7 @@ package messages
 
 import (
 	"fmt"
-	"net"
+	"github.com/Icey-Glitch/Syncplay-G/utils"
 	"sync"
 
 	roomM "github.com/Icey-Glitch/Syncplay-G/mngr/room"
@@ -30,14 +30,14 @@ type ListResponse struct {
 }
 
 // handleListRequest handles the "List" request and returns the response.
-func HandleListRequest(conn net.Conn, room *roomM.Room) {
+func HandleListRequest(connection roomM.Connection) {
 	fmt.Println("List request received")
 
 	// Initialize the list map
 	list := make(map[string]RoomInfo)
 
 	// Retrieve user states from the PlaylistManager
-	var users, valid = room.PlaylistManager.GetUsers()
+	var users, valid = connection.Owner.PlaylistManager.GetUsers()
 	if !valid {
 		fmt.Println("Error: Failed to retrieve user states from the PlaylistManager")
 		return
@@ -63,12 +63,12 @@ func HandleListRequest(conn net.Conn, room *roomM.Room) {
 		// Lock the mutex for writing
 		mutex.Lock()
 		// Check if the room already exists in the list
-		if _, exists := list[room.Name]; !exists {
-			list[room.Name] = make(RoomInfo)
+		if _, exists := list[connection.Owner.Name]; !exists {
+			list[connection.Owner.Name] = make(RoomInfo)
 		}
 
 		// Add the player info to the room info
-		list[room.Name][user.Username] = playerInfo
+		list[connection.Owner.Name][user.Username] = playerInfo
 		mutex.Unlock()
 	}
 
@@ -78,15 +78,11 @@ func HandleListRequest(conn net.Conn, room *roomM.Room) {
 	}
 
 	fmt.Println(response)
-	// Send the response back to the client
-	/*
-		err := utils.SendJSONMessage(conn, responseBytes, room.PlaylistManager, room.GetUsernameByConnection(conn))
-		if err != nil {
-			fmt.Println("Error: Failed to send list response to", room.GetUsernameByConnection(conn), ":", err)
-			return
-		}
 
-		fmt.Println("List response successfully sent to", room.GetUsernameByConnection(conn))
-	*/
+	err := utils.SendJSONMessage(connection.Conn, response, connection.Owner.PlaylistManager, connection.Username)
+	if err != nil {
+		fmt.Println("Error: Failed to send list response to", connection.Username, ":", err)
+		return
+	}
 
 }

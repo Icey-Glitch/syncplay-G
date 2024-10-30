@@ -104,39 +104,6 @@ func TestSetRoomState(t *testing.T) {
 	assert.Equal(t, state, retrievedState)
 }
 
-func TestSetUserLatencyCalculation(t *testing.T) {
-	room := NewRoom("testRoom")
-	conn := &Connection{
-		Username: "testUser",
-		Conn:     &net.TCPConn{},
-	}
-
-	room.AddConnection(conn)
-	err := room.SetUserLatencyCalculation("testUser", 1.0, 2.0, 3.0, 4.0)
-	assert.Nil(t, err)
-
-	latencyCalc, err := room.GetUsersLatencyCalculation(conn)
-	assert.Nil(t, err)
-	assert.Equal(t, 1.0, latencyCalc.ArivalTime)
-	assert.Equal(t, 2.0, latencyCalc.ClientTime)
-	assert.Equal(t, 3.0, latencyCalc.ClientRtt)
-	assert.Equal(t, 4.0, latencyCalc.clientLatencyCalculation)
-}
-
-func TestSetUserLatencyCalculation_EmptyUsername(t *testing.T) {
-	room := NewRoom("testRoom")
-	err := room.SetUserLatencyCalculation("", 1.0, 2.0, 3.0, 4.0)
-	assert.NotNil(t, err)
-	assert.Equal(t, "username cannot be empty", err.Error())
-}
-
-func TestSetUserLatencyCalculation_NonExistentUsername(t *testing.T) {
-	room := NewRoom("testRoom")
-	err := room.SetUserLatencyCalculation("nonExistentUser", 1.0, 2.0, 3.0, 4.0)
-	assert.NotNil(t, err)
-	assert.Equal(t, "connection not found for username: nonExistentUser", err.Error())
-}
-
 func TestGetUsersLatencyCalculation_NilConnection(t *testing.T) {
 	room := NewRoom("testRoom")
 	_, err := room.GetUsersLatencyCalculation(nil)
@@ -155,6 +122,27 @@ func TestGetUsersLatencyCalculation_NilClientLatencyCalculation(t *testing.T) {
 	_, err := room.GetUsersLatencyCalculation(conn)
 	assert.NotNil(t, err)
 	assert.Equal(t, "client latency calculation is nil", err.Error())
+}
+
+func TestGetUsersLatencyCalculation(t *testing.T) {
+	room := NewRoom("testRoom")
+	conn := &Connection{
+		Username: "testUser",
+		Conn:     &net.TCPConn{},
+		ClientLatencyCalculation: &ClientLatencyCalculation{
+			ArivalTime: 10.5,
+			ClientTime: 20.5,
+			ClientRtt:  30.5,
+		},
+	}
+
+	room.AddConnection(conn)
+	latencyCalculation, err := room.GetUsersLatencyCalculation(conn)
+	assert.Nil(t, err)
+	assert.Equal(t, 10.5, latencyCalculation.ArivalTime)
+	assert.Equal(t, 20.5, latencyCalculation.ClientTime)
+	assert.Equal(t, 30.5, latencyCalculation.ClientRtt)
+
 }
 
 func TestGetUserPlaystate_EmptyUsername(t *testing.T) {
@@ -183,4 +171,40 @@ func TestGetRoomState_EmptyRoomState(t *testing.T) {
 	_, err := room.GetRoomState()
 	assert.NotNil(t, err)
 	assert.Equal(t, "room state is empty", err.Error())
+}
+
+func TestSetUserLatencyCalculation_EmptyUsername(t *testing.T) {
+	room := NewRoom("testRoom")
+	err := room.SetUserLatencyCalculation(nil, 0, 0, 0, 0)
+	assert.NotNil(t, err)
+	assert.Equal(t, "connection cannot be nil", err.Error())
+}
+
+func TestSetUserLatencyCalculation_NilClientLatencyCalculation(t *testing.T) {
+	room := NewRoom("testRoom")
+	conn := &Connection{
+		Username: "testUser",
+		Conn:     &net.TCPConn{},
+	}
+
+	room.AddConnection(conn)
+	err := room.SetUserLatencyCalculation(conn, 0, 0, 0, 0)
+	assert.Nil(t, err)
+	assert.NotNil(t, conn.ClientLatencyCalculation)
+}
+
+func TestSetUserLatencyCalculation(t *testing.T) {
+	room := NewRoom("testRoom")
+	conn := &Connection{
+		Username: "testUser",
+		Conn:     &net.TCPConn{},
+	}
+
+	room.AddConnection(conn)
+	err := room.SetUserLatencyCalculation(conn, 0, 0, 0, 0)
+	assert.Nil(t, err)
+	assert.NotNil(t, conn.ClientLatencyCalculation)
+	assert.Equal(t, 0.0, conn.ClientLatencyCalculation.ArivalTime)
+	assert.Equal(t, 0.0, conn.ClientLatencyCalculation.ClientTime)
+	assert.Equal(t, 0.0, conn.ClientLatencyCalculation.ClientRtt)
 }
