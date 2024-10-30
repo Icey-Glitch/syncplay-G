@@ -77,8 +77,8 @@ func GetRoomByConnection(conn net.Conn, rooms map[string]*Room) *Room {
 }
 
 func (r *Room) GetConnectionByUsername(username string) *Connection {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
+	//r.mutex.RLock()
+	//defer r.mutex.RUnlock()
 
 	for _, connection := range r.Users {
 		if connection.Username == username {

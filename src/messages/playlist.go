@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	connM "github.com/Icey-Glitch/Syncplay-G/mngr/conn"
+	roomM "github.com/Icey-Glitch/Syncplay-G/mngr/room"
 	"github.com/Icey-Glitch/Syncplay-G/utils"
 )
 
@@ -28,7 +29,7 @@ type PlaylistIndexMessage struct {
 }
 
 // HandlePlaylistIndexMessage handle
-func HandlePlaylistIndexMessage(conn net.Conn, playlistIndex map[string]interface{}) {
+func HandlePlaylistIndexMessage(conn net.Conn, playlistIndex map[string]interface{}, Username string) {
 	cm := connM.GetConnectionManager()
 	room := cm.GetRoomByConnection(conn)
 	if room == nil {
@@ -39,7 +40,7 @@ func HandlePlaylistIndexMessage(conn net.Conn, playlistIndex map[string]interfac
 
 	if playlistObject.User.Username != "" {
 		// check if the user is the same as the one who sent the message
-		if playlistObject.User.Username != room.GetUsernameByConnection(conn) {
+		if playlistObject.User.Username != Username {
 			return
 		}
 	}
@@ -52,14 +53,17 @@ func HandlePlaylistIndexMessage(conn net.Conn, playlistIndex map[string]interfac
 		playlistObject.Index = 0
 	}
 
-	playlistObject.User.Username = room.GetUsernameByConnection(conn)
+	playlistObject.User.Username = Username
 
 	room.PlaylistManager.SetPlaylist(playlistObject)
 
-	SendPlaylistIndexMessage(conn, room.Name)
+	if playlistObject.User.Username != Username {
+		return
+	}
+	SendPlaylistIndexMessage(room, Username)
 }
 
-func HandlePlaylistChangeMessage(conn net.Conn, playlistChange map[string]interface{}) {
+func HandlePlaylistChangeMessage(conn net.Conn, playlistChange map[string]interface{}, Username string) {
 	// client {"Set": {"playlistChange": {"files": ["https://www.youtube.com/watch?v=0TVdTvWzr-A"]}}}
 	// server {"Set": {"playlistChange": {"user": "icey", "files": ["https://www.youtube.com/watch?v=0TVdTvWzr-A"]}}}
 	cm := connM.GetConnectionManager()
@@ -87,17 +91,15 @@ func HandlePlaylistChangeMessage(conn net.Conn, playlistChange map[string]interf
 	}
 
 	PlaylistObject.Files = files
-	PlaylistObject.User.Username = room.GetUsernameByConnection(conn)
+	PlaylistObject.User.Username = Username
 
 	room.PlaylistManager.SetPlaylist(PlaylistObject)
 
-	SendPlaylistChangeMessage(conn, room.Name)
+	SendPlaylistChangeMessage(room, Username)
 }
 
 // ExtractStatePlaystateArguments extract
-func ExtractStatePlaystateArguments(playstate map[string]interface{}, conn net.Conn) (interface{}, interface{}, interface{}, interface{}) {
-	cm := connM.GetConnectionManager()
-	room := cm.GetRoomByConnection(conn)
+func ExtractStatePlaystateArguments(playstate map[string]interface{}, room *roomM.Room, username string) (interface{}, interface{}, interface{}, interface{}) {
 	if room == nil {
 		return nil, nil, nil, nil
 	}
@@ -119,18 +121,13 @@ func ExtractStatePlaystateArguments(playstate map[string]interface{}, conn net.C
 
 	setBy := playstate["setBy"]
 	if setBy == nil {
-		setBy = room.GetUsernameByConnection(conn)
+		setBy = username
 	}
 
 	return position, paused, doSeek, setBy
 }
 
-// send
-
-func SendPlaylistIndexMessage(conn net.Conn, roomName string) {
-	cm := connM.GetConnectionManager()
-	room := cm.GetRoom(roomName)
-
+func SendPlaylistIndexMessage(room *roomM.Room, username string) {
 	if room == nil {
 		return
 	}
@@ -155,7 +152,7 @@ func SendPlaylistIndexMessage(conn net.Conn, roomName string) {
 			},
 		}
 
-		utils.SendJSONMessageMultiCast(playlistIndexMessage, roomName)
+		utils.SendJSONMessageMultiCast(playlistIndexMessage, room.Name)
 	} else {
 		playlistIndexMessage := PlaylistIndexMessage{
 			Set: struct {
@@ -174,15 +171,11 @@ func SendPlaylistIndexMessage(conn net.Conn, roomName string) {
 			},
 		}
 
-		utils.SendJSONMessageMultiCast(playlistIndexMessage, roomName)
+		utils.SendJSONMessageMultiCast(playlistIndexMessage, room.Name)
 	}
-
 }
 
-func SendPlaylistChangeMessage(conn net.Conn, roomName string) {
-	cm := connM.GetConnectionManager()
-	room := cm.GetRoom(roomName)
-
+func SendPlaylistChangeMessage(room *roomM.Room, username string) {
 	if room == nil {
 		return
 	}
@@ -207,10 +200,10 @@ func SendPlaylistChangeMessage(conn net.Conn, roomName string) {
 		},
 	}
 
-	utils.SendJSONMessageMultiCast(playlistChangeMessage, roomName)
+	utils.SendJSONMessageMultiCast(playlistChangeMessage, room.Name)
 }
 
-func HandleFileMessage(conn net.Conn, file map[string]interface{}) {
+func HandleFileMessage(conn net.Conn, file map[string]interface{}, Username string) {
 	// Client >> {"Set": {"file": {"duration": 596.458, "name": "BigBuckBunny.avi", "size": 220514438}}}
 	// Server (to all who can see room) << {"Set": {"user": {"Bob": {"room": {"name": "SyncRoom"}, "file": {"duration": 596.458, "name": "BigBuckBunny.avi", "size": "220514438"}}}}}
 
@@ -239,7 +232,7 @@ func HandleFileMessage(conn net.Conn, file map[string]interface{}) {
 	}
 
 	// store the user data
-	room.PlaylistManager.SetUserFile(room.GetUsernameByConnection(conn), duration.(float64), name.(string), size.(float64))
+	room.PlaylistManager.SetUserFile(Username, duration.(float64), name.(string), size.(float64))
 
 	// create the file message
 	fileMessage := map[string]interface{}{

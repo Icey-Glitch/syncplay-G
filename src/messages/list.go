@@ -37,7 +37,7 @@ func HandleListRequest(conn net.Conn, room *roomM.Room) {
 	list := make(map[string]RoomInfo)
 
 	// Retrieve user states from the PlaylistManager
-	users, valid := room.PlaylistManager.GetUsers()
+	var users, valid = room.PlaylistManager.GetUsers()
 	if !valid {
 		fmt.Println("Error: Failed to retrieve user states from the PlaylistManager")
 		return

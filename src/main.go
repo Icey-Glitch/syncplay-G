@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	roomM "github.com/Icey-Glitch/Syncplay-G/mngr/room"
+
 	"github.com/goccy/go-json"
 
 	"github.com/Icey-Glitch/Syncplay-G/messages"
@@ -166,8 +168,9 @@ func handleHelloMessage(helloMsg interface{}, encoder *json.Encoder, conn net.Co
 	}
 
 	cm.AddConnection(username, roomName, nil, conn)
+	Roomo := cm.GetRoom(roomName)
 
-	sendSessionInformation(conn, username, roomName)
+	sendSessionInformation(conn, username, roomName, Roomo)
 
 	response := messages.CreateHelloResponse(username, "1.7.3", roomName)
 	err := utils.SendJSONMessage(conn, response, cm.GetRoom(roomName).PlaylistManager, username)
@@ -176,7 +179,7 @@ func handleHelloMessage(helloMsg interface{}, encoder *json.Encoder, conn net.Co
 		return
 	}
 
-	messages.SendInitialState(conn, username)
+	messages.SendInitialState(conn, Roomo, username)
 
 	setupStatusScheduler(roomName, username)
 
@@ -184,6 +187,9 @@ func handleHelloMessage(helloMsg interface{}, encoder *json.Encoder, conn net.Co
 
 func handleSetMessage(setMsg interface{}, conn net.Conn) {
 	// Deserialize the set message
+	cm := connM.GetConnectionManager()
+	room := cm.GetRoomByConnection(conn)
+	username := room.GetUsernameByConnection(conn)
 	setData, ok := setMsg.(map[string]interface{})
 	if !ok {
 		fmt.Println("Error: Set message is not a map")
@@ -209,7 +215,7 @@ func handleSetMessage(setMsg interface{}, conn net.Conn) {
 	// Handle playlist change message
 	if playlistChange, ok := setData["playlistChange"].(map[string]interface{}); ok {
 		if playlistChange != nil {
-			messages.HandlePlaylistChangeMessage(conn, playlistChange)
+			messages.HandlePlaylistChangeMessage(conn, playlistChange, username)
 		} else {
 			fmt.Println("Error: playlistChange is nil")
 		}
@@ -218,7 +224,7 @@ func handleSetMessage(setMsg interface{}, conn net.Conn) {
 	// Handle playlist index message
 	if playlistIndex, ok := setData["playlistIndex"].(map[string]interface{}); ok {
 		if playlistIndex != nil {
-			messages.HandlePlaylistIndexMessage(conn, playlistIndex)
+			messages.HandlePlaylistIndexMessage(conn, playlistIndex, username)
 		} else {
 			fmt.Println("Error: playlistIndex is nil")
 		}
@@ -227,7 +233,7 @@ func handleSetMessage(setMsg interface{}, conn net.Conn) {
 	// handle file message
 	if file, ok := setData["file"].(map[string]interface{}); ok {
 		if file != nil {
-			messages.HandleFileMessage(conn, file)
+			messages.HandleFileMessage(conn, file, username)
 		} else {
 			fmt.Println("Error: file is nil")
 		}
@@ -236,7 +242,8 @@ func handleSetMessage(setMsg interface{}, conn net.Conn) {
 
 func handleStateMessage(stateMsg interface{}, encoder *json.Encoder, conn net.Conn) {
 	cm := connM.GetConnectionManager()
-	user := cm.GetRoomByConnection(conn).GetUsernameByConnection(conn)
+	room := cm.GetRoomByConnection(conn)
+	user := room.GetUsernameByConnection(conn)
 	var position, paused, doSeek, setBy interface{}
 	var messageAge, latencyCalculation, clientlatency, rtt float64
 	clientIgnoringOnTheFly := 0
@@ -258,7 +265,7 @@ func handleStateMessage(stateMsg interface{}, encoder *json.Encoder, conn net.Co
 	}
 
 	if playstate, ok := stateData["playstate"].(map[string]interface{}); ok {
-		position, paused, doSeek, setBy = messages.ExtractStatePlaystateArguments(playstate, conn)
+		position, paused, doSeek, setBy = messages.ExtractStatePlaystateArguments(playstate, room, user)
 	}
 
 	if ping, ok := stateData["ping"].(map[string]interface{}); ok {
@@ -292,10 +299,10 @@ func handleChatMessage(chatData interface{}, encoder *json.Encoder, conn net.Con
 	messages.SendChatMessage(msg, username)
 }
 
-func sendSessionInformation(conn net.Conn, username, roomName string) {
+func sendSessionInformation(conn net.Conn, username, roomName string, room *roomM.Room) {
 	messages.SendReadyMessageInit(conn, username)
 	//messages.SendPlaylistChangeMessage(conn, roomName)
-	messages.SendPlaylistIndexMessage(conn, roomName)
+	messages.SendPlaylistIndexMessage(room, username)
 }
 
 func setupStatusScheduler(roomName, username string) {

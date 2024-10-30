@@ -33,23 +33,19 @@ type UserState struct {
 	SetBy    interface{}
 }
 
-func SendInitialState(conn net.Conn, username string) {
-	// check if the room exists
-	cm := connM.GetConnectionManager()
-	room := cm.GetRoomByConnection(conn)
+func SendInitialState(conn net.Conn, room *roomM.Room, username string) {
 	if room == nil {
 		return
 	}
 
-	// check if the room is empty
 	if len(room.Users) == 0 {
 		stateMessage := StateMessage{}
-		stateMessage.State.Ping.LatencyCalculation = float64(time.Now().UnixNano()) / 1e9 // Convert to seconds
+		stateMessage.State.Ping.LatencyCalculation = float64(time.Now().UnixNano()) / 1e9
 		stateMessage.State.Ping.ServerRtt = 0
 		stateMessage.State.Playstate.DoSeek = false
 		stateMessage.State.Playstate.Position = 0
 		stateMessage.State.Playstate.Paused = true
-		stateMessage.State.Playstate.SetBy = "Nobody" // Initial state, set by "Nobody"
+		stateMessage.State.Playstate.SetBy = "Nobody"
 
 		err := utils.SendJSONMessage(conn, stateMessage, room.PlaylistManager, username)
 		if err != nil {
@@ -59,10 +55,9 @@ func SendInitialState(conn net.Conn, username string) {
 		return
 	}
 
-	// get the room's state
 	roomState := room.RoomState
 	stateMessage := StateMessage{}
-	stateMessage.State.Ping.LatencyCalculation = float64(time.Now().UnixNano()) / 1e9 // Convert to seconds
+	stateMessage.State.Ping.LatencyCalculation = float64(time.Now().UnixNano()) / 1e9
 	stateMessage.State.Ping.ServerRtt = 0
 	stateMessage.State.Playstate.DoSeek = false
 	stateMessage.State.Playstate.Position = roomState.Position
@@ -73,10 +68,8 @@ func SendInitialState(conn net.Conn, username string) {
 		fmt.Println("Error sending initial state message:", err)
 		return
 	}
-
 }
 
-// add user to schedule
 func SendUserState(room *roomM.Room, username string) bool {
 	fmt.Println("Sending user state")
 	connection := room.GetConnectionByUsername(username)
