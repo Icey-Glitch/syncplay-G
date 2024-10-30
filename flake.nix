@@ -1,85 +1,45 @@
 {
-  inputs = {
-    nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/*.tar.gz";
-    flake-utils.url = "github:numtide/flake-utils";
-    nix-vscode-extensions.url = "github:nix-community/nix-vscode-extensions";
-  };
+  description = "A basic gomod2nix flake";
+
+  inputs.nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/*.tar.gz";
+  inputs.flake-utils.url = "github:numtide/flake-utils";
+  inputs.gomod2nix.url = "github:nix-community/gomod2nix";
+  inputs.nix-vscode-extensions.url = "github:nix-community/nix-vscode-extensions";
+  inputs.gomod2nix.inputs.nixpkgs.follows = "nixpkgs";
+  inputs.gomod2nix.inputs.flake-utils.follows = "flake-utils";
+
   outputs = {
     self,
     nixpkgs,
     flake-utils,
+    gomod2nix,
     nix-vscode-extensions,
-  }:
+  }: (
     flake-utils.lib.eachDefaultSystem
-    (
-      system: let
-        overlays = [];
-        pkgs = import nixpkgs {
-          inherit system overlays;
-          config = {
-            allowUnfree = true;
-          };
+    (system: let
+      pkgs = import nixpkgs {
+        inherit system;
+        config = {
+          allowUnfree = true;
         };
-        extensions = nix-vscode-extensions.extensions.${system};
-        inherit (pkgs) vscode-with-extensions vscodium;
+      };
 
-        packages.default = vscode-with-extensions.override {
-          vscode = vscodium;
-          vscodeExtensions = with extensions; [
-            vscode-marketplace.golang.go
-            vscode-marketplace-release.github.copilot
-            vscode-marketplace-release.github.copilot-chat
-            open-vsx.catppuccin.catppuccin-vsc
-            open-vsx.jnoortheen.nix-ide
-          ];
-        };
-      in
-        with pkgs; {
-          devShells.default = mkShell {
-            # 👇 we can just use `rustToolchain` here:
-            buildInports = [
-              go
-
-              gopls
-              delve
-
-              # goimports, godoc, etc.
-              gotools
-
-              # https://github.com/golangci/golangci-lint
-              golangci-lint
-            ];
-            packages = [
-              # Development Tools
-              go
-              packages.default
-              nil
-              wireshark
-              tcpdump
-              tmux
-              delve
-
-              # Development Tools
-              hotspot
-              pprof
-              gperftools
-              graphviz
-              perf_data_converter
-
-              linuxKernel.packages.linux_6_11.perf
-
-              jetbrains.goland
-              # goimports, godoc, etc.
-              gotools
-
-              # https://github.com/golangci/golangci-lint
-              golangci-lint
-              gopls
-              delve
-              # Development time dependencies
-              gtest
-            ];
-          };
-        }
-    );
+      # The current default sdk for macOS fails to compile go projects, so we use a newer one for now.
+      # This has no effect on other platforms.
+      callPackage = pkgs.darwin.apple_sdk_11_0.callPackage or pkgs.callPackage;
+      inherit (pkgs) vscode-with-extensions vscodium;
+      extensions = nix-vscode-extensions.extensions.${system};
+    in {
+      packages.default = callPackage ./. {
+        inherit (gomod2nix.legacyPackages.${system}) buildGoApplication;
+      };
+      packages.test = callPackage ./test.nix {
+        inherit (gomod2nix.legacyPackages.${system}) buildGoApplication;
+      };
+      devShells.default = callPackage ./shell.nix {
+        inherit (gomod2nix.legacyPackages.${system}) mkGoEnv gomod2nix;
+        extensions = extensions;
+      };
+    })
+  );
 }

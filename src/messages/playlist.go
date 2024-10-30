@@ -2,10 +2,8 @@ package messages
 
 import (
 	"fmt"
-	"net"
 	"strings"
 
-	connM "github.com/Icey-Glitch/Syncplay-G/mngr/conn"
 	roomM "github.com/Icey-Glitch/Syncplay-G/mngr/room"
 	"github.com/Icey-Glitch/Syncplay-G/utils"
 )
@@ -203,15 +201,14 @@ func SendPlaylistChangeMessage(room *roomM.Room, username string) {
 	utils.SendJSONMessageMultiCast(playlistChangeMessage, room.Name)
 }
 
-func HandleFileMessage(conn net.Conn, file map[string]interface{}, Username string) {
+func HandleFileMessage(connection roomM.Connection, file map[string]interface{}) {
 	// Client >> {"Set": {"file": {"duration": 596.458, "name": "BigBuckBunny.avi", "size": 220514438}}}
 	// Server (to all who can see room) << {"Set": {"user": {"Bob": {"room": {"name": "SyncRoom"}, "file": {"duration": 596.458, "name": "BigBuckBunny.avi", "size": "220514438"}}}}}
 
 	// Client >> {"Set": {"file": {"duration": 596.0, "name": "6fa13ad43fea", "size": "44657bd3c1bd"}}}
 	// Server (to all who can see room) << {"Set": {"user": {"Bob": {"room": {"name": "6fa13ad43fea"}, "file": {"duration": 596.458, "name": "6fa13ad43fea", "size": "44657bd3c1bd"}}}}}
 
-	cm := connM.GetConnectionManager()
-	room := cm.GetRoomByConnection(conn)
+	room := connection.Owner
 	if room == nil {
 		fmt.Println("Error: room is nil")
 		return
@@ -233,7 +230,7 @@ func HandleFileMessage(conn net.Conn, file map[string]interface{}, Username stri
 	}
 
 	// store the user data
-	err := room.PlaylistManager.SetUserFile(Username, duration.(float64), name.(string), size.(float64))
+	err := room.PlaylistManager.SetUserFile(connection.Username, duration.(float64), name.(string), size.(float64))
 	if err != nil {
 		fmt.Println("Error: failed to set user file data")
 		return
@@ -243,7 +240,7 @@ func HandleFileMessage(conn net.Conn, file map[string]interface{}, Username stri
 	fileMessage := map[string]interface{}{
 		"Set": map[string]interface{}{
 			"user": map[string]interface{}{
-				room.GetUsernameByConnection(conn): map[string]interface{}{
+				connection.Username: map[string]interface{}{
 					"room": map[string]interface{}{
 						"name": roomName,
 					},

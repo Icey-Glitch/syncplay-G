@@ -186,7 +186,7 @@ func handleSetMessage(setMsg interface{}, conn net.Conn) {
 	// Deserialize the set message
 	cm := connM.GetConnectionManager()
 	room := cm.GetRoomByConnection(conn)
-	username := room.GetUsernameByConnection(conn)
+
 	usr := room.GetConnectionByConn(conn)
 	setData, ok := setMsg.(map[string]interface{})
 	if !ok {
@@ -231,7 +231,7 @@ func handleSetMessage(setMsg interface{}, conn net.Conn) {
 	// handle file message
 	if file, ok := setData["file"].(map[string]interface{}); ok {
 		if file != nil {
-			messages.HandleFileMessage(conn, file, username)
+			messages.HandleFileMessage(*usr, file)
 		} else {
 			fmt.Println("Error: file is nil")
 		}
@@ -286,7 +286,7 @@ func handleStateMessage(stateMsg interface{}, conn net.Conn) {
 
 	}
 
-	if position != nil && paused != nil && clientIgnoringOnTheFly == 0 {
+	if position != nil && paused != nil && doSeek != nil && setBy != nil {
 		messages.UpdateGlobalState(*user, position, paused, doSeek, setBy, latencyCalculation, messageAge)
 	}
 

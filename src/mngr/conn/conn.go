@@ -1,6 +1,7 @@
 package connM
 
 import (
+	"fmt"
 	"net"
 	"sync"
 
@@ -58,7 +59,11 @@ func (cm *ConnectionManager) AddConnection(username, roomName string, state inte
 	}
 
 	room := cm.rooms[roomName]
-	room.AddConnection(connection)
+	err := room.AddConnection(connection)
+	if err != nil {
+		fmt.Errorf("Failed to add connection to room: %s", err.Error())
+		return nil
+	}
 
 	cm.connectionEvent.Publish(connection)
 	return connection

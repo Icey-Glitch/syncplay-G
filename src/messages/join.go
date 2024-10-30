@@ -1,10 +1,10 @@
 package messages
 
 import (
+	"fmt"
 	"net"
 
 	connM "github.com/Icey-Glitch/Syncplay-G/mngr/conn"
-	roomM "github.com/Icey-Glitch/Syncplay-G/mngr/room"
 	"github.com/Icey-Glitch/Syncplay-G/utils"
 )
 
@@ -22,13 +22,13 @@ func HandleJoinMessage(conn net.Conn, msg map[string]interface{}) {
 		_ = cm.CreateRoom(roomName)
 	}
 
-	room.AddConnection(&roomM.Connection{
-		Username: username,
-		Conn:     conn,
-		RoomName: roomName,
-	})
+	cm.AddConnection(username, roomName, nil, conn)
 
-	broadcastJoinAnnouncement(username, roomName, cm)
+	err := broadcastJoinAnnouncement(username, roomName, cm)
+	if err != nil {
+		fmt.Printf("Failed to send Join Anouncement" + err.Error())
+		return
+	}
 }
 
 func HandleUserLeftMessage(conn net.Conn) {

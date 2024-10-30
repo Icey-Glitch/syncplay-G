@@ -1,9 +1,11 @@
 package messages
 
 import (
+	"encoding/json"
 	"fmt"
-	"github.com/Icey-Glitch/Syncplay-G/utils"
 	"sync"
+
+	"github.com/Icey-Glitch/Syncplay-G/utils"
 
 	roomM "github.com/Icey-Glitch/Syncplay-G/mngr/room"
 )
@@ -56,9 +58,8 @@ func HandleListRequest(connection roomM.Connection) {
 		playerInfo := PlayerInfo{
 			File: fileInfo,
 		}
-		if user.Position != 0 {
-			playerInfo.Position = &user.Position
-		}
+
+		playerInfo.Position = &user.Position
 
 		// Lock the mutex for writing
 		mutex.Lock()
@@ -77,11 +78,17 @@ func HandleListRequest(connection roomM.Connection) {
 		List: list,
 	}
 
-	fmt.Println(response)
-
-	err := utils.SendJSONMessage(connection.Conn, response, connection.Owner.PlaylistManager, connection.Username)
+	// pretty print the response
+	jsonresponse, err := json.Marshal(response)
 	if err != nil {
-		fmt.Println("Error: Failed to send list response to", connection.Username, ":", err)
+		fmt.Println("Error: Failed to marshal list response:", err)
+		return
+	}
+	utils.PrettyPrintJSON(jsonresponse)
+
+	err1 := utils.SendJSONMessage(connection.Conn, response, connection.Owner.PlaylistManager, connection.Username)
+	if err1 != nil {
+		fmt.Println("Error: Failed to send list response to", connection.Username, ":", err1)
 		return
 	}
 

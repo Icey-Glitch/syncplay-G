@@ -24,6 +24,7 @@ type Playlist struct {
 	Files  []interface{}
 	Index  interface{}
 	Paused bool
+	DoSeek bool
 	User   struct {
 		Username   string
 		connection interface{}
@@ -35,14 +36,14 @@ type Playlist struct {
 }
 
 type PlaylistManager struct {
-	playlist   Playlist
+	Playlist   Playlist
 	mutex      sync.RWMutex
 	stateEvent *event.Event
 }
 
 func NewPlaylistManager() *PlaylistManager {
 	return &PlaylistManager{
-		playlist:   Playlist{Users: make(map[string]User), Paused: true},
+		Playlist:   Playlist{Users: make(map[string]User), Paused: true, DoSeek: true},
 		stateEvent: event.NewEvent(),
 	}
 }
@@ -56,19 +57,19 @@ func (pm *PlaylistManager) CreateUserPlaystate(username string) error {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
-	_, exists := pm.playlist.Users[username]
+	_, exists := pm.Playlist.Users[username]
 	if exists {
 		return fmt.Errorf("user %s already exists in the playlist", username)
 	}
 
-	pm.playlist.Users[username] = User{
+	pm.Playlist.Users[username] = User{
 		Username: username,
 		Position: 0,
 		Paused:   true,
 		DoSeek:   false,
 	}
 
-	pm.stateEvent.Publish(pm.playlist.Users[username])
+	pm.stateEvent.Publish(pm.Playlist.Users[username])
 	return nil
 }
 
@@ -80,18 +81,25 @@ func (pm *PlaylistManager) SetUserPlaystate(username string, position float64, p
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
-	user, exists := pm.playlist.Users[username]
+	user, exists := pm.Playlist.Users[username]
 	if !exists {
 		return fmt.Errorf("user %s does not exist in the playlist", username)
 	}
 
 	if doSeek != user.DoSeek {
-		pm.SetUsersDoSeek(doSeek, messageAge)
+		err := pm.SetUsersDoSeek(doSeek, messageAge)
+		if err != nil {
+			return err
+		}
+	}
+
+	if paused != pm.Playlist.Paused {
+		pm.SetUsersPaused(paused)
 	}
 
 	// TODO: update room paused state if one user unpauses or pause all users if one user pauses
 
-	pm.playlist.Users[username] = User{
+	pm.Playlist.Users[username] = User{
 		Username: username,
 		Position: position,
 		Paused:   paused,
@@ -99,7 +107,7 @@ func (pm *PlaylistManager) SetUserPlaystate(username string, position float64, p
 		SetBy:    setBy,
 	}
 
-	pm.stateEvent.Publish(pm.playlist.Users[username])
+	pm.stateEvent.Publish(pm.Playlist.Users[username])
 	return nil
 }
 
@@ -112,12 +120,12 @@ func (pm *PlaylistManager) RemoveUserPlaystate(username string) error {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
-	_, exists := pm.playlist.Users[username]
+	_, exists := pm.Playlist.Users[username]
 	if !exists {
 		return fmt.Errorf("user %s does not exist in the playlist", username)
 	}
 
-	delete(pm.playlist.Users, username)
+	delete(pm.Playlist.Users, username)
 	pm.stateEvent.Publish(username)
 	return nil
 }
@@ -130,7 +138,7 @@ func (pm *PlaylistManager) SetUserFile(username string, duration float64, name s
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
-	user, exists := pm.playlist.Users[username]
+	user, exists := pm.Playlist.Users[username]
 	if !exists {
 		return fmt.Errorf("user %s does not exist in the playlist", username)
 	}
@@ -139,7 +147,7 @@ func (pm *PlaylistManager) SetUserFile(username string, duration float64, name s
 	user.Name = name
 	user.Size = size
 
-	pm.playlist.Users[username] = user
+	pm.Playlist.Users[username] = user
 	pm.stateEvent.Publish(user)
 	return nil
 }
@@ -148,7 +156,7 @@ func (pm *PlaylistManager) GetUserPlaystate(username string) (User, bool) {
 	pm.mutex.RLock()
 	defer pm.mutex.RUnlock()
 
-	state, exists := pm.playlist.Users[username]
+	state, exists := pm.Playlist.Users[username]
 	return state, exists
 }
 
@@ -157,12 +165,20 @@ func (pm *PlaylistManager) SetUsersDoSeek(doSeek bool, age float64) error {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
-	if age > pm.playlist.doSeekTime { // only update if the new age is greater
-		pm.playlist.doSeekTime = age
-		pm.playlist.Paused = true
-		pm.playlist.Users = make(map[string]User)
+	if age > pm.Playlist.doSeekTime { // only update if the new age is greater
+		pm.Playlist.doSeekTime = age
+		pm.Playlist.Paused = true
+		pm.Playlist.DoSeek = doSeek
 	}
 	return nil
+}
+
+// SetUsersPaused sets all users in the playlist to paused
+func (pm *PlaylistManager) SetUsersPaused(paused bool) {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+
+	pm.Playlist.Paused = paused
 }
 
 // GetUsers returns a list of users in the playlist
@@ -170,7 +186,7 @@ func (pm *PlaylistManager) GetUsers() (map[string]User, bool) {
 	pm.mutex.RLock()
 	defer pm.mutex.RUnlock()
 
-	return pm.playlist.Users, len(pm.playlist.Users) > 0
+	return pm.Playlist.Users, len(pm.Playlist.Users) > 0
 
 }
 
@@ -179,31 +195,31 @@ func (pm *PlaylistManager) SetLastMessageAge(username string, age float64) {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
-	user := pm.playlist.Users[username]
+	user := pm.Playlist.Users[username]
 	user.LastMessageAge = age
-	pm.playlist.Users[username] = user
+	pm.Playlist.Users[username] = user
 }
 
 func (pm *PlaylistManager) GetPlaylist() Playlist {
 	pm.mutex.RLock()
 	defer pm.mutex.RUnlock()
 
-	return pm.playlist
+	return pm.Playlist
 }
 
 func (pm *PlaylistManager) SetPlaylist(playlist Playlist) {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
-	pm.playlist = playlist
-	pm.stateEvent.Publish(pm.playlist)
+	pm.Playlist = playlist
+	pm.stateEvent.Publish(pm.Playlist)
 }
 
 func (pm *PlaylistManager) GetUserObject(username string) (User, bool) {
 	pm.mutex.RLock()
 	defer pm.mutex.RUnlock()
 
-	user, exists := pm.playlist.Users[username]
+	user, exists := pm.Playlist.Users[username]
 	return user, exists
 }
 

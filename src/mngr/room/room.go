@@ -121,9 +121,16 @@ func (r *Room) GetConnections() []*Connection {
 	return r.Users
 }
 
-func (r *Room) AddConnection(connection *Connection) {
+func (r *Room) AddConnection(connection *Connection) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
+
+	// check if connection already exists
+	for _, conn := range r.Users {
+		if conn.Conn == connection.Conn {
+			return fmt.Errorf("connection already exists")
+		}
+	}
 
 	r.Users = append(r.Users, connection)
 
@@ -131,8 +138,9 @@ func (r *Room) AddConnection(connection *Connection) {
 	err := r.PlaylistManager.CreateUserPlaystate(connection.Username)
 	if err != nil {
 		fmt.Println("Failed to create user playstate " + err.Error())
-		return
+		return err
 	}
+	return nil
 }
 
 func (r *Room) RemoveConnection(conn net.Conn) {

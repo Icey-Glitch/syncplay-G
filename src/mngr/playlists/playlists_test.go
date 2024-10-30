@@ -67,7 +67,7 @@ func TestRemoveUserPlaystate(t *testing.T) {
 	assert.NoError(t, err)
 
 	users, exists := pm.GetUsers()
-	assert.True(t, exists)
+	assert.False(t, exists)
 	assert.Empty(t, users)
 }
 

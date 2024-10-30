@@ -85,7 +85,7 @@ func SendUserState(connection roomM.Connection) bool {
 
 	processingTime := float64(time.Now().UnixNano())/1e9 - latencyCalculation.ArivalTime
 
-	err = sendStateMessage(connection.Owner, connection.Conn, puser.Position, puser.Paused, puser.DoSeek, processingTime, puser.SetBy, latencyCalculation.ClientTime, connection.Username)
+	err = sendStateMessage(connection.Owner, connection.Conn, puser.Position, connection.Owner.PlaylistManager.Playlist.Paused, connection.Owner.PlaylistManager.Playlist.DoSeek, processingTime, puser.SetBy, latencyCalculation.ClientTime, connection.Username)
 	if err != nil {
 		fmt.Println("Error sending state message:", err)
 		return true
@@ -124,17 +124,31 @@ func sendStateMessage(room *roomM.Room, conn net.Conn, position float64, paused 
 
 func HandleStatePing(ping map[string]interface{}) (clientRTT float64, latencyCalculation float64, clientLatencyCalculation float64) {
 	/*
-		General client ping (no file open / paused at beginning)
+				General client ping (no file open / paused at beginning)
 
-		Client >> {"State": {"ping": {"clientRtt": 0, "clientLatencyCalculation": 1394590473.585, "latencyCalculation": 1394590688.962084}, "playstate": {"paused": true, "position": 0.0}}}
+				Client >> {"State": {"ping": {"clientRtt": 0, "clientLatencyCalculation": 1394590473.585, "latencyCalculation": 1394590688.962084}, "playstate": {"paused": true, "position": 0.0}}}
 
-		General client ping (file playing)
+				General client ping (file playing)
 
-		Client >> {"State": {"ping": {"clientRtt": 0, "clientLatencyCalculation": 1394590473.585, "latencyCalculation": 1394590688.962084}, "playstate": {"paused": false, "position": 2.236}}}
+				Client >> {"State": {"ping": {"clientRtt": 0, "clientLatencyCalculation": 1394590473.585, "latencyCalculation": 1394590688.962084}, "playstate": {"paused": false, "position": 2.236}}}
 
-		calculate the time the message was sent using the client's latency calculation and the server's time
+				calculate the time the message was sent using the client's latency calculation and the server's time
 
-		Look at the code to see how it works. ‘[client]LatencyCalculation’  is a timestamp based on the time in seconds since the epoch as a floating point number. ‘clientRtt’ is round-trip time (i.e. ping time). In older versions Syncplay used ‘yourLatency’ and ‘senderLatency’ but not ‘serverRtt’.
+				Look at the code to see how it works. ‘[client]LatencyCalculation’  is a timestamp based on the time in seconds since the epoch as a floating point number. ‘clientRtt’ is round-trip time (i.e. ping time). In older versions Syncplay used ‘yourLatency’ and ‘senderLatency’ but not ‘serverRtt’.
+
+			{
+		  "State": {
+		    "ping": {
+		      "clientRtt": 0,
+		      "clientLatencyCalculation": 1394590473.585,
+		      "latencyCalculation": 1394590688.962084
+		    },
+		    "playstate": {
+		      "paused": true,
+		      "position": 0
+		    }
+		  }
+		}
 	*/
 
 	// TODO: Implement client latency calculation using last message time and current time (messageAge)
@@ -152,6 +166,8 @@ func HandleStatePing(ping map[string]interface{}) (clientRTT float64, latencyCal
 	if !ok {
 		ClientLatencyCalculation = 0
 	}
+
+	// playstate logic
 
 	return ClientRtt, latencyCalculation, ClientLatencyCalculation
 }
