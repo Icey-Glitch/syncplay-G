@@ -110,3 +110,74 @@ func TestSubscribeToStateChanges(t *testing.T) {
 
 	assert.NotNil(t, ch)
 }
+
+// deadlock testing
+func TestSetUsersPaused(t *testing.T) {
+	pm := NewPlaylistManager()
+
+	// Test case 1: Set paused to true
+	pm.SetUsersPaused(true)
+
+	// Test case 2: Set paused to false
+	pm.SetUsersPaused(false)
+}
+
+func TestSetUsersPosition(t *testing.T) {
+	pm := NewPlaylistManager()
+
+	// Test case 1: Set position to 0
+	pm.SetUsersPosition(0, 0)
+
+	// Test case 2: Set position to 10
+	pm.SetUsersPosition(10, 0)
+}
+
+func TestSetUsersPausedAndPosition(t *testing.T) {
+	pm := NewPlaylistManager()
+
+	// Test case 1: Set paused to true and position to 0
+	pm.SetUsersPosition(0, 0)
+	pm.SetUsersPaused(true)
+
+	// Test case 2: Set paused to false and position to 10
+	pm.SetUsersPosition(10, 0)
+	pm.SetUsersPaused(false)
+}
+
+func TestSetUsersPausedAndDoSeek(t *testing.T) {
+	pm := NewPlaylistManager()
+
+	// Test case 1: Set paused to true and doSeek to true
+	pm.SetUsersPaused(true)
+	pm.SetUsersDoSeek(true, 0)
+
+	// Test case 2: Set paused to false and doSeek to false
+	pm.SetUsersPaused(false)
+	pm.SetUsersDoSeek(false, 0)
+}
+
+func TestSetUsersPositionAndDoSeek(t *testing.T) {
+	pm := NewPlaylistManager()
+
+	// Test case 1: Set position to 0 and doSeek to true
+	pm.SetUsersPosition(0, 0)
+	pm.SetUsersDoSeek(true, 0)
+
+	// Test case 2: Set position to 10 and doSeek to false
+	pm.SetUsersPosition(10, 0)
+	pm.SetUsersDoSeek(false, 0)
+}
+
+func TestSetUsersPausedPositionAndDoSeek(t *testing.T) {
+	pm := NewPlaylistManager()
+
+	// Test case 1: Set paused to true, position to 0 and doSeek to true
+	pm.SetUsersPosition(0, 0)
+	pm.SetUsersPaused(true)
+	pm.SetUsersDoSeek(true, 0)
+
+	// Test case 2: Set paused to false, position to 10 and doSeek to false
+	pm.SetUsersPosition(10, 0)
+	pm.SetUsersPaused(false)
+	pm.SetUsersDoSeek(false, 0)
+}

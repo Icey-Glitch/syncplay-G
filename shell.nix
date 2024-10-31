@@ -18,12 +18,13 @@
 }: let
   goEnv = mkGoEnv {pwd = ./src/.;};
 
-  package.vscodiumNew = vscode-with-extensions.override {
+  vscodiumNew = vscode-with-extensions.override {
     vscode = vscodium;
     vscodeExtensions = with extensions; [
       vscode-marketplace.golang.go
       vscode-marketplace-release.github.copilot
-      vscode-marketplace-release.github.copilot-chat
+
+      (extensions.forVSCodeVersion "1.64.1").vscode-marketplace.github.copilot
       open-vsx.catppuccin.catppuccin-vsc
       open-vsx.jnoortheen.nix-ide
     ];
@@ -34,7 +35,7 @@ in
       goEnv
       gomod2nix
 
-      package.vscodiumNew
+      vscodiumNew
 
       jetbrains.goland
 
@@ -49,4 +50,7 @@ in
       golint
       gopls
     ];
+
+    # name the shell
+    name = "golang-shell";
   }

@@ -95,6 +95,8 @@ func (pm *PlaylistManager) SetUserPlaystate(username string, position float64, p
 
 	if paused != pm.Playlist.Paused {
 		pm.SetUsersPaused(paused)
+
+		pm.SetUsersPosition(position, messageAge)
 	}
 
 	// TODO: update room paused state if one user unpauses or pause all users if one user pauses
@@ -179,6 +181,29 @@ func (pm *PlaylistManager) SetUsersPaused(paused bool) {
 	defer pm.mutex.Unlock()
 
 	pm.Playlist.Paused = paused
+}
+
+// SetUsersPosition sets the position of all users in the playlist
+func (pm *PlaylistManager) SetUsersPosition(position float64, age float64) error {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+
+	for username := range pm.Playlist.Users {
+		user := pm.Playlist.Users[username]
+		if age > user.LastMessageAge { // only update if the new age is greater
+			user.Position = position
+			pm.Playlist.Users[username] = user
+		}
+	}
+	return nil
+}
+
+// GetUserPauseState returns the pause state of the playlist
+func (pm *PlaylistManager) GetUserPauseState() bool {
+	pm.mutex.RLock()
+	defer pm.mutex.RUnlock()
+
+	return pm.Playlist.Paused
 }
 
 // GetUsers returns a list of users in the playlist

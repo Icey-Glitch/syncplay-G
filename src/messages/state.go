@@ -70,7 +70,7 @@ func SendInitialState(connection roomM.Connection) {
 }
 
 func SendUserState(connection roomM.Connection) bool {
-
+	fmt.Println("Sending user state")
 	puser, exists := connection.Owner.PlaylistManager.GetUserPlaystate(connection.Username)
 	if !exists {
 		fmt.Println("Error: User does not exist in the playlist:", connection.Username)
@@ -188,12 +188,10 @@ func UpdateGlobalState(connection roomM.Connection, position, paused, doSeek, se
 	globalState.doSeek = doSeek.(bool)
 	globalState.setBy = setBy
 
-	// store the user's playstate
 	error := room.PlaylistManager.SetUserPlaystate(connection.Username, position.(float64), paused.(bool), doSeek.(bool), setBy.(string), messageAge)
 	if error != nil {
 		fmt.Println("Error storing user playstate")
 	}
-
 }
 
 func GetLocalState() (interface{}, interface{}, interface{}, interface{}) {
