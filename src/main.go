@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	Features "github.com/Icey-Glitch/Syncplay-G/features"
 	roomM "github.com/Icey-Glitch/Syncplay-G/mngr/room"
 
 	"github.com/goccy/go-json"
@@ -30,6 +31,8 @@ var (
 )
 
 func main() {
+	features := Features.NewFeatures()
+	Features.SetGlobalFeatures(*features)
 	ln, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		log.Fatal("Error starting server:", err)
@@ -77,7 +80,10 @@ func handleClient(conn net.Conn) {
 		if err := decoder.Decode(&msg); err == io.EOF {
 			cm := connM.GetConnectionManager()
 			fmt.Println("Client disconnected")
-			messages.HandleUserLeftMessage(conn)
+			room := cm.GetRoomByConnection(conn)
+
+			usr := room.GetConnectionByConn(conn)
+			messages.HandleUserLeftMessage(*usr)
 			cm.RemoveConnection(conn)
 			return
 		} else if err != nil {
@@ -165,12 +171,23 @@ func handleHelloMessage(helloMsg interface{}, conn net.Conn) {
 		_ = cm.CreateRoom(roomName)
 	}
 
-	connection := cm.AddConnection(username, roomName, nil, conn)
+	connection, coner := cm.AddConnection(username, roomName, nil, conn)
+	if coner != nil {
+		fmt.Println("Error adding connection to room:", coner)
+		messages.SendMessageToUser(username+" Is already in the room", "server", conn)
+		return
+	}
+
+	err1 := messages.BroadcastJoinAnnouncement(*connection)
+	if err1 != nil {
+		fmt.Println("Failed to send Join Anouncement" + err1.Error())
+		return
+	}
 
 	sendSessionInformation(*connection)
 
 	response := messages.CreateHelloResponse(username, "1.7.3", roomName)
-	err := utils.SendJSONMessage(conn, response, cm.GetRoom(roomName).PlaylistManager, username)
+	err := utils.SendJSONMessage(conn, response)
 	if err != nil {
 		fmt.Println("failed to send hello to " + username + " " + err.Error())
 		return
@@ -198,7 +215,6 @@ func handleSetMessage(setMsg interface{}, conn net.Conn) {
 	// Handle user joining room
 	if user, ok := setData["user"].(map[string]interface{}); ok {
 		if user != nil {
-
 			messages.HandleJoinMessage(conn, user)
 		} else {
 			fmt.Println("Error: user is nil")
@@ -309,7 +325,7 @@ func handleChatMessage(chatData interface{}, conn net.Conn) {
 
 func sendSessionInformation(connection roomM.Connection) {
 	messages.SendReadyMessageInit(connection)
-	//messages.SendPlaylistChangeMessage(conn, roomName)
+	messages.SendPlaylistChangeMessage(connection)
 	messages.SendPlaylistIndexMessage(connection)
 }
 

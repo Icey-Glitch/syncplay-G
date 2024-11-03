@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	Features "github.com/Icey-Glitch/Syncplay-G/features"
 	"github.com/Icey-Glitch/Syncplay-G/mngr/event"
 )
 
@@ -12,20 +13,24 @@ type User struct {
 	Position float64
 	Paused   bool
 	DoSeek   bool
-	SetBy    string
-	Duration float64
-	Name     string
-	Size     float64
 
 	LastMessageAge float64
+
+	File        *File
+	UsrPlaylist []File
 }
 
 type Playlist struct {
-	Files  []interface{}
-	Index  interface{}
-	Paused bool
-	DoSeek bool
-	User   struct {
+	Files []File
+	Index interface{}
+
+	SetBy        string
+	Paused       bool
+	DoSeek       bool
+	Position     float64
+	PositionTime float64
+
+	User struct {
 		Username   string
 		connection interface{}
 	}
@@ -33,6 +38,12 @@ type Playlist struct {
 	Users map[string]User
 
 	doSeekTime float64
+}
+
+type File struct {
+	Size     float64
+	Name     string
+	Duration float64
 }
 
 type PlaylistManager struct {
@@ -43,7 +54,7 @@ type PlaylistManager struct {
 
 func NewPlaylistManager() *PlaylistManager {
 	return &PlaylistManager{
-		Playlist:   Playlist{Users: make(map[string]User), Paused: true, DoSeek: true},
+		Playlist:   Playlist{Users: make(map[string]User), Paused: true, DoSeek: false},
 		stateEvent: event.NewEvent(),
 	}
 }
@@ -67,6 +78,10 @@ func (pm *PlaylistManager) CreateUserPlaystate(username string) error {
 		Position: 0,
 		Paused:   true,
 		DoSeek:   false,
+
+		LastMessageAge: 0,
+
+		File: nil,
 	}
 
 	pm.stateEvent.Publish(pm.Playlist.Users[username])
@@ -106,7 +121,6 @@ func (pm *PlaylistManager) SetUserPlaystate(username string, position float64, p
 		Position: position,
 		Paused:   paused,
 		DoSeek:   doSeek,
-		SetBy:    setBy,
 	}
 
 	pm.stateEvent.Publish(pm.Playlist.Users[username])
@@ -132,11 +146,106 @@ func (pm *PlaylistManager) RemoveUserPlaystate(username string) error {
 	return nil
 }
 
-func (pm *PlaylistManager) SetUserFile(username string, duration float64, name string, size float64) error {
-	if username == "" {
-		return fmt.Errorf("username cannot be empty")
+// AddFile adds a file to the playlist
+func (pm *PlaylistManager) AddFile(duration float64, name string, size float64, User string) File {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+
+	// check if file already exists
+	for _, file := range pm.Playlist.Files {
+		if file.Name == name {
+			return file
+		}
 	}
 
+	// check if shared playlist is enabled
+	if Features.GlobalFeatures.SharedPlaylists {
+		pm.Playlist.Files = append(pm.Playlist.Files, File{
+			Size:     size,
+			Name:     name,
+			Duration: duration,
+		})
+	} else {
+		// add to the user's playlist in their user object
+		user, exists := pm.Playlist.Users[User]
+		if !exists {
+			return File{}
+		}
+
+		user.UsrPlaylist = append(user.UsrPlaylist, File{
+			Size:     size,
+			Name:     name,
+			Duration: duration,
+		})
+		pm.Playlist.Users[User] = user
+
+	}
+
+	//pm.Playlist.SetBy = setBy
+	return pm.Playlist.Files[len(pm.Playlist.Files)-1]
+}
+
+// helper func
+func (pm *PlaylistManager) AddFiles(files []File, User string) {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+
+	// check if shared playlist is enabled
+	if Features.GlobalFeatures.SharedPlaylists {
+		// if file doesnt exist in new array then remove it from the playlist, and add new files
+		for i := 0; i < len(pm.Playlist.Files); i++ {
+			found := false
+			for _, file := range files {
+				if file.Name == pm.Playlist.Files[i].Name {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				pm.Playlist.Files = append(pm.Playlist.Files[:i], pm.Playlist.Files[i+1:]...)
+				i--
+			}
+
+		}
+
+		for _, file := range files {
+			pm.Playlist.Files = append(pm.Playlist.Files, file)
+		}
+
+	} else {
+		// Retrieve the User struct from the map
+		userPlaylist := pm.Playlist.Users[User]
+
+		// if file doesnt exist in new array then remove it from the playlist
+		for i := 0; i < len(userPlaylist.UsrPlaylist); i++ {
+			found := false
+			for _, file := range files {
+				if file.Name == userPlaylist.UsrPlaylist[i].Name {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				// Remove file from user's playlist
+				userPlaylist.UsrPlaylist = append(userPlaylist.UsrPlaylist[:i], userPlaylist.UsrPlaylist[i+1:]...)
+				i--
+			}
+		}
+
+		// Add new files to the user's playlist
+		for _, file := range files {
+			userPlaylist.UsrPlaylist = append(userPlaylist.UsrPlaylist, file)
+		}
+
+		// Store the updated User struct back in the map
+		pm.Playlist.Users[User] = userPlaylist
+	}
+}
+
+// SetUserFile sets the file for the user
+func (pm *PlaylistManager) SetUserFile(username string, file File) error {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
@@ -145,13 +254,23 @@ func (pm *PlaylistManager) SetUserFile(username string, duration float64, name s
 		return fmt.Errorf("user %s does not exist in the playlist", username)
 	}
 
-	user.Duration = duration
-	user.Name = name
-	user.Size = size
-
+	user.File = &file
 	pm.Playlist.Users[username] = user
-	pm.stateEvent.Publish(user)
 	return nil
+}
+
+// CalculatePosition calculates the position of the playlist and the delta time between the last message and the current message
+func (pm *PlaylistManager) CalculatePosition(messageAge float64) (position float64, delta float64) {
+	pm.mutex.RLock()
+	defer pm.mutex.RUnlock()
+
+	if pm.Playlist.Paused {
+		return pm.Playlist.Position, 0
+	}
+
+	Delta := messageAge - pm.Playlist.PositionTime
+	Position := pm.Playlist.Position + Delta
+	return Position, Delta
 }
 
 func (pm *PlaylistManager) GetUserPlaystate(username string) (User, bool) {
@@ -164,9 +283,6 @@ func (pm *PlaylistManager) GetUserPlaystate(username string) (User, bool) {
 
 // SetUsersDoSeek sets all users in the playlist to doSeek
 func (pm *PlaylistManager) SetUsersDoSeek(doSeek bool, age float64) error {
-	pm.mutex.Lock()
-	defer pm.mutex.Unlock()
-
 	if age > pm.Playlist.doSeekTime { // only update if the new age is greater
 		pm.Playlist.doSeekTime = age
 		pm.Playlist.Paused = true
@@ -177,24 +293,16 @@ func (pm *PlaylistManager) SetUsersDoSeek(doSeek bool, age float64) error {
 
 // SetUsersPaused sets all users in the playlist to paused
 func (pm *PlaylistManager) SetUsersPaused(paused bool) {
-	pm.mutex.Lock()
-	defer pm.mutex.Unlock()
-
 	pm.Playlist.Paused = paused
 }
 
 // SetUsersPosition sets the position of all users in the playlist
 func (pm *PlaylistManager) SetUsersPosition(position float64, age float64) error {
-	pm.mutex.Lock()
-	defer pm.mutex.Unlock()
-
-	for username := range pm.Playlist.Users {
-		user := pm.Playlist.Users[username]
-		if age > user.LastMessageAge { // only update if the new age is greater
-			user.Position = position
-			pm.Playlist.Users[username] = user
-		}
+	if age > pm.Playlist.PositionTime { // only update if the new age is greater
+		pm.Playlist.PositionTime = age
+		pm.Playlist.Position = position
 	}
+
 	return nil
 }
 

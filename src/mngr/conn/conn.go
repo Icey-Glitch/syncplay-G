@@ -39,7 +39,7 @@ func GetConnectionManager() *ConnectionManager {
 
 var connectionManager *ConnectionManager
 
-func (cm *ConnectionManager) AddConnection(username, roomName string, state interface{}, conn net.Conn) *roomM.Connection {
+func (cm *ConnectionManager) AddConnection(username, roomName string, state interface{}, conn net.Conn) (*roomM.Connection, error) {
 	cm.mutex.Lock()
 	defer cm.mutex.Unlock()
 
@@ -61,12 +61,12 @@ func (cm *ConnectionManager) AddConnection(username, roomName string, state inte
 	room := cm.rooms[roomName]
 	err := room.AddConnection(connection)
 	if err != nil {
-		fmt.Errorf("Failed to add connection to room: %s", err.Error())
-		return nil
+		err1 := fmt.Errorf("Failed to add connection to room: %s", err.Error())
+		return nil, err1
 	}
 
 	cm.connectionEvent.Publish(connection)
-	return connection
+	return connection, nil
 }
 
 func (cm *ConnectionManager) RemoveConnection(conn net.Conn) {
@@ -76,8 +76,6 @@ func (cm *ConnectionManager) RemoveConnection(conn net.Conn) {
 	for _, room := range cm.rooms {
 		room.RemoveConnection(conn)
 	}
-
-	conn.Close()
 
 	cm.connectionEvent.Publish(conn)
 }

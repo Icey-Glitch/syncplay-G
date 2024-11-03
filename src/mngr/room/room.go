@@ -43,16 +43,8 @@ type Room struct {
 	PlaylistManager *playlistsM.PlaylistManager
 	mutex           sync.RWMutex
 
-	RoomState roomState
-
 	stateEventManager *event.EventManager
 	stateEventTicker  *event.Ticker
-}
-
-type roomState struct {
-	IsPaused bool    `json:"isPaused"`
-	Position float64 `json:"position"`
-	SetBy    string
 }
 
 func NewRoom(name string) *Room {
@@ -225,30 +217,6 @@ func (r *Room) GetUserPlaystate(username string) (interface{}, bool, error) {
 	}
 
 	return playstate, true, nil
-}
-
-// room state
-func (r *Room) GetRoomState() (roomState, error) {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
-
-	if (roomState{}) == r.RoomState {
-		return roomState{}, fmt.Errorf("room state is empty")
-	}
-
-	return r.RoomState, nil
-}
-
-func (r *Room) SetRoomState(state roomState) error {
-	if (roomState{}) == state {
-		return fmt.Errorf("state cannot be empty")
-	}
-
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	r.RoomState = state
-	return nil
 }
 
 // SetUserLatencyCalculation sets the client latency calculation struct

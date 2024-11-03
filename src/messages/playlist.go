@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Icey-Glitch/Syncplay-G/mngr/playlists"
+
 	roomM "github.com/Icey-Glitch/Syncplay-G/mngr/room"
 	"github.com/Icey-Glitch/Syncplay-G/utils"
 )
@@ -11,8 +13,8 @@ import (
 type PlaylistChangeMessage struct {
 	Set struct {
 		PlaylistChange struct {
-			User  interface{}   `json:"user"`
-			Files []interface{} `json:"files"`
+			User  interface{}      `json:"user"`
+			Files []playlists.File `json:"files"`
 		} `json:"playlistChange"`
 	} `json:"Set"`
 }
@@ -80,20 +82,35 @@ func HandlePlaylistChangeMessage(connection roomM.Connection, playlistChange map
 		return
 	}
 
+	// array of files to be added to the playlist
+	FileObj := make([]playlists.File, len(files))
+	size := 0.0
+	duration := 0.0
+
 	// Sanitize URLs
 	for i, file := range files {
 		if url, ok := file.(string); ok {
 			files[i] = strings.TrimSpace(url)
 			fmt.Println("Sanitized URL: ", files[i])
+			// check if it is empty
+			if files[i] != "" || files[i] != " " || files[i] != nil {
+				FileObj[i] = playlists.File{
+					Size:     size,
+					Name:     url,
+					Duration: duration,
+				}
+				room.PlaylistManager.AddFile(duration, url, size, connection.Username)
+			}
+
 		}
 	}
 
-	PlaylistObject.Files = files
+	//room.PlaylistManager.AddFiles(FileObj, connection.Username)
+
+	PlaylistObject.Files = connection.Owner.PlaylistManager.Playlist.Files
 	PlaylistObject.User.Username = connection.Username
 
-	room.PlaylistManager.SetPlaylist(PlaylistObject)
-
-	SendPlaylistChangeMessage(room, connection.Username)
+	SendPlaylistChangeMessage(connection)
 }
 
 // ExtractStatePlaystateArguments extract
@@ -104,7 +121,7 @@ func ExtractStatePlaystateArguments(playstate map[string]interface{}, connection
 
 	position, ok := playstate["position"].(float64)
 	if !ok {
-		position = 0
+		position = 0.0
 	}
 
 	paused, ok := playstate["paused"].(bool)
@@ -119,7 +136,7 @@ func ExtractStatePlaystateArguments(playstate map[string]interface{}, connection
 
 	setBy := playstate["setBy"]
 	if setBy == nil {
-		setBy = connection.Username
+		setBy = "Nobody"
 	}
 
 	return position, paused, doSeek, setBy
@@ -132,65 +149,45 @@ func SendPlaylistIndexMessage(connection roomM.Connection) {
 
 	PlaylistObject := connection.Owner.PlaylistManager.GetPlaylist()
 
-	if PlaylistObject.User.Username == "" || len(PlaylistObject.Files) == 0 {
-		playlistIndexMessage := PlaylistIndexMessage{
-			Set: struct {
-				PlaylistIndex struct {
-					Index interface{} `json:"index"`
-					User  interface{} `json:"user"`
-				} `json:"playlistIndex"`
+	playlistIndexMessage := PlaylistIndexMessage{
+		Set: struct {
+			PlaylistIndex struct {
+				Index interface{} `json:"index"`
+				User  interface{} `json:"user"`
+			} `json:"playlistIndex"`
+		}{
+			PlaylistIndex: struct {
+				Index interface{} `json:"index"`
+				User  interface{} `json:"user"`
 			}{
-				PlaylistIndex: struct {
-					Index interface{} `json:"index"`
-					User  interface{} `json:"user"`
-				}{
-					Index: PlaylistObject.Index,
-					User:  PlaylistObject.User.Username,
-				},
+				Index: PlaylistObject.Index,
+				User:  PlaylistObject.User.Username,
 			},
-		}
-
-		utils.SendJSONMessageMultiCast(playlistIndexMessage, connection.Owner.Name)
-	} else {
-		playlistIndexMessage := PlaylistIndexMessage{
-			Set: struct {
-				PlaylistIndex struct {
-					Index interface{} `json:"index"`
-					User  interface{} `json:"user"`
-				} `json:"playlistIndex"`
-			}{
-				PlaylistIndex: struct {
-					Index interface{} `json:"index"`
-					User  interface{} `json:"user"`
-				}{
-					Index: nil,
-					User:  nil,
-				},
-			},
-		}
-
-		utils.SendJSONMessageMultiCast(playlistIndexMessage, connection.Owner.Name)
+		},
 	}
+
+	utils.SendJSONMessageMultiCast(playlistIndexMessage, connection.Owner.Name)
+
 }
 
-func SendPlaylistChangeMessage(room *roomM.Room, username string) {
-	if room == nil {
+func SendPlaylistChangeMessage(connection roomM.Connection) {
+	if connection.Owner == nil {
 		return
 	}
-	PlaylistObject := room.PlaylistManager.GetPlaylist()
+	PlaylistObject := connection.Owner.PlaylistManager.GetPlaylist()
 
 	fmt.Println("PlaylistObject: ", PlaylistObject)
 
 	playlistChangeMessage := PlaylistChangeMessage{
 		Set: struct {
 			PlaylistChange struct {
-				User  interface{}   `json:"user"`
-				Files []interface{} `json:"files"`
+				User  interface{}      `json:"user"`
+				Files []playlists.File `json:"files"`
 			} `json:"playlistChange"`
 		}{
 			PlaylistChange: struct {
-				User  interface{}   `json:"user"`
-				Files []interface{} `json:"files"`
+				User  interface{}      `json:"user"`
+				Files []playlists.File `json:"files"`
 			}{
 				Files: PlaylistObject.Files,
 				User:  PlaylistObject.User.Username,
@@ -198,7 +195,12 @@ func SendPlaylistChangeMessage(room *roomM.Room, username string) {
 		},
 	}
 
-	utils.SendJSONMessageMultiCast(playlistChangeMessage, room.Name)
+	// if the files is nil return an empty array
+	if playlistChangeMessage.Set.PlaylistChange.Files == nil {
+		playlistChangeMessage.Set.PlaylistChange.Files = []playlists.File{}
+	}
+
+	utils.SendJSONMessageMultiCast(playlistChangeMessage, connection.Owner.Name)
 }
 
 func HandleFileMessage(connection roomM.Connection, file map[string]interface{}) {
@@ -230,11 +232,8 @@ func HandleFileMessage(connection roomM.Connection, file map[string]interface{})
 	}
 
 	// store the user data
-	err := room.PlaylistManager.SetUserFile(connection.Username, duration.(float64), name.(string), size.(float64))
-	if err != nil {
-		fmt.Println("Error: failed to set user file data")
-		return
-	}
+	fileObj := room.PlaylistManager.AddFile(duration.(float64), name.(string), size.(float64), connection.Username)
+	room.PlaylistManager.SetUserFile(connection.Username, fileObj)
 
 	// create the file message
 	fileMessage := map[string]interface{}{

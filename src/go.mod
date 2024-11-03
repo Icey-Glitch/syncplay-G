@@ -1,6 +1,6 @@
 module github.com/Icey-Glitch/Syncplay-G
 
-go 1.22.7
+go 1.23.1
 
 require github.com/goccy/go-json v0.10.3
 

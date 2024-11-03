@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 
+	roomM "github.com/Icey-Glitch/Syncplay-G/mngr/room"
+
 	connM "github.com/Icey-Glitch/Syncplay-G/mngr/conn"
 	"github.com/Icey-Glitch/Syncplay-G/utils"
 )
@@ -22,41 +24,44 @@ func HandleJoinMessage(conn net.Conn, msg map[string]interface{}) {
 		_ = cm.CreateRoom(roomName)
 	}
 
-	cm.AddConnection(username, roomName, nil, conn)
+	connection, coner := cm.AddConnection(username, roomName, nil, conn)
+	if coner != nil {
+		fmt.Println("Error adding connection to room:", coner)
+		return
+	}
 
-	err := broadcastJoinAnnouncement(username, roomName, cm)
+	err := BroadcastJoinAnnouncement(*connection)
 	if err != nil {
 		fmt.Printf("Failed to send Join Anouncement" + err.Error())
 		return
 	}
 }
 
-func HandleUserLeftMessage(conn net.Conn) {
+func HandleUserLeftMessage(connection roomM.Connection) {
 	// {"Set": {"user": {"Bob": {"room": {"name": "SyncRoom"}, "event": {"left": true}}}}}
 
 	// print the incoming message
 
-	cm := connM.GetConnectionManager()
-	room := cm.GetRoomByConnection(conn)
-
-	username := room.GetUsernameByConnection(conn)
+	room := connection.Owner
 
 	if room == nil {
 		return
 	}
 
-	room.RemoveConnection(conn)
-
-	broadcastLeaveAnnouncement(username, room.Name, cm)
+	err := broadcastLeaveAnnouncement(connection)
+	if err != nil {
+		fmt.Printf("Failed to send Leave Anouncement" + err.Error())
+		return
+	}
 }
 
-func broadcastLeaveAnnouncement(username, roomName string, cm *connM.ConnectionManager) error {
+func broadcastLeaveAnnouncement(connection roomM.Connection) error {
 	announcement := map[string]interface{}{
 		"Set": map[string]interface{}{
 			"user": map[string]interface{}{
-				username: map[string]interface{}{
+				connection.Username: map[string]interface{}{
 					"room": map[string]interface{}{
-						"name": roomName,
+						"name": connection.Owner.Name,
 					},
 					"event": map[string]interface{}{
 						"left": true,
@@ -65,18 +70,18 @@ func broadcastLeaveAnnouncement(username, roomName string, cm *connM.ConnectionM
 			},
 		},
 	}
-	utils.SendJSONMessageMultiCast(announcement, cm.GetRoom(roomName).Name)
+	utils.SendJSONMessageMultiCast(announcement, connection.Owner.Name)
 
 	return nil
 }
 
-func broadcastJoinAnnouncement(username, roomName string, cm *connM.ConnectionManager) error {
+func BroadcastJoinAnnouncement(connection roomM.Connection) error {
 	announcement := map[string]interface{}{
 		"Set": map[string]interface{}{
 			"user": map[string]interface{}{
-				username: map[string]interface{}{
+				connection.Username: map[string]interface{}{
 					"room": map[string]interface{}{
-						"name": roomName,
+						"name": connection.Owner.Name,
 					},
 					"event": map[string]interface{}{
 						"joined": true,
@@ -85,7 +90,7 @@ func broadcastJoinAnnouncement(username, roomName string, cm *connM.ConnectionMa
 			},
 		},
 	}
-	utils.SendJSONMessageMultiCast(announcement, cm.GetRoom(roomName).Name)
+	utils.SendJSONMessageMultiCast(announcement, connection.Owner.Name)
 
 	return nil
 }

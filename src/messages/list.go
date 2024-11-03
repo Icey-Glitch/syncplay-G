@@ -50,10 +50,14 @@ func HandleListRequest(connection roomM.Connection) {
 
 	// Iterate over the users and construct the room info
 	for _, user := range users {
+		if user.File == nil {
+			break
+		}
+
 		fileInfo := FileInfo{
-			Duration: user.Duration,
-			Name:     user.Name,
-			Size:     user.Size,
+			Duration: user.File.Duration,
+			Name:     user.File.Name,
+			Size:     user.File.Size,
 		}
 		playerInfo := PlayerInfo{
 			File: fileInfo,
@@ -86,7 +90,7 @@ func HandleListRequest(connection roomM.Connection) {
 	}
 	utils.PrettyPrintJSON(jsonresponse)
 
-	err1 := utils.SendJSONMessage(connection.Conn, response, connection.Owner.PlaylistManager, connection.Username)
+	err1 := utils.SendJSONMessage(connection.Conn, response)
 	if err1 != nil {
 		fmt.Println("Error: Failed to send list response to", connection.Username, ":", err1)
 		return

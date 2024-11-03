@@ -9,7 +9,6 @@ import (
 	"github.com/goccy/go-json"
 
 	connM "github.com/Icey-Glitch/Syncplay-G/mngr/conn"
-	playlistsM "github.com/Icey-Glitch/Syncplay-G/mngr/playlists"
 )
 
 // InsertSpaceAfterColons inserts a space after each colon in the JSON byte slice
@@ -30,7 +29,7 @@ func InsertSpaceAfterColons(jsonData []byte) []byte {
 // SendJSONMessage marshals the message to JSON, inserts spaces after colons, and sends it to the connection
 var sendMutex sync.Mutex
 
-func SendJSONMessage(conn net.Conn, message interface{}, playlistManager *playlistsM.PlaylistManager, username string) error {
+func SendJSONMessage(conn net.Conn, message interface{}) error {
 	sendMutex.Lock()
 	defer sendMutex.Unlock()
 
@@ -64,7 +63,10 @@ func SendJSONMessageMultiCast(message interface{}, roomName string) {
 	}
 
 	for _, user := range room.Users {
-		SendJSONMessage(user.Conn, message, room.PlaylistManager, user.Username)
+		err := SendJSONMessage(user.Conn, message)
+		if err != nil {
+			return
+		}
 	}
 
 }
