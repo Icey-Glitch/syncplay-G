@@ -270,7 +270,7 @@ func handleStateMessage(stateMsg interface{}, conn net.Conn) {
 	user := room.GetConnectionByConn(conn)
 	var position, paused, doSeek, setBy interface{}
 	var messageAge, latencyCalculation, clientlatency, rtt float64
-	clientIgnoringOnTheFly := 0
+	var clientIgnoringOnTheFly float64
 
 	stateData, ok := stateMsg.(map[string]interface{})
 	if !ok {
@@ -278,14 +278,14 @@ func handleStateMessage(stateMsg interface{}, conn net.Conn) {
 		return
 	}
 
-	if ignore, ok := stateData["ignoringOnTheFly"].(map[string]interface{}); ok {
-		if _, ok := ignore["server"].(int); ok {
+	//Client >> {"State": {"ignoringOnTheFly": {"client": 1}, "ping": {"clientRtt": 0, "clientLatencyCalculation": 1394587857.902}, "playstate": {"paused": false, "position": 0.089}}}
+	if ignoringOnTheFly, ok := stateData["ignoringOnTheFly"].(map[string]interface{}); ok {
+		clientIgnoringOnTheFly, ok = ignoringOnTheFly["client"].(float64)
+		if !ok {
 			clientIgnoringOnTheFly = 0
-		} else if client, ok := ignore["client"].(int); ok {
-			if client == clientIgnoringOnTheFly {
-				clientIgnoringOnTheFly = 0
-			}
 		}
+
+		//fmt.Println("Ignoring on the fly:", clientIgnoringOnTheFly)
 	}
 
 	if playstate, ok := stateData["playstate"].(map[string]interface{}); ok {
@@ -303,7 +303,12 @@ func handleStateMessage(stateMsg interface{}, conn net.Conn) {
 	}
 
 	if position != nil && paused != nil && doSeek != nil && setBy != nil {
-		messages.UpdateGlobalState(*user, position, paused, doSeek, setBy, latencyCalculation, messageAge)
+		messages.UpdateGlobalState(*user, position, paused, doSeek, setBy, latencyCalculation, messageAge, clientIgnoringOnTheFly)
+	}
+
+	// if ignoringOnTheFly is not 0, send global state to all users
+	if clientIgnoringOnTheFly != 0 {
+		messages.SendGlobalState(*user)
 	}
 
 	messages.GetLocalState()

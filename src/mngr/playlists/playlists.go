@@ -29,6 +29,7 @@ type Playlist struct {
 	DoSeek       bool
 	Position     float64
 	PositionTime float64
+	Ignore       float64
 
 	User struct {
 		Username   string
@@ -126,6 +127,8 @@ func (pm *PlaylistManager) SetUserPlaystate(username string, position float64, p
 		DoSeek:   doSeek,
 	}
 
+	pm.Playlist.SetBy = setBy
+
 	pm.stateEvent.Publish(pm.Playlist.Users[username])
 	return nil
 }
@@ -193,6 +196,32 @@ func (pm *PlaylistManager) AddFile(duration float64, name string, size float64, 
 		return File{}, fmt.Errorf("Files array is empty")
 	}
 	return pm.Playlist.Files[len(pm.Playlist.Files)-1], nil
+}
+
+// SetLastMessageAge sets the last message age for the user
+func (pm *PlaylistManager) SetLastMessageAge(username string, age float64) {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+
+	user := pm.Playlist.Users[username]
+	user.LastMessageAge = age
+	pm.Playlist.Users[username] = user
+}
+
+// GetLastMessageAge gets the last message age for the user
+func (pm *PlaylistManager) GetLastMessageAge(username string) float64 {
+	pm.mutex.RLock()
+	defer pm.mutex.RUnlock()
+
+	return pm.Playlist.Users[username].LastMessageAge
+}
+
+// SetIgnoreInt
+func (pm *PlaylistManager) SetIgnoreInt(ignoreInt float64) {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+
+	pm.Playlist.Ignore = ignoreInt
 }
 
 // helper func
@@ -288,6 +317,10 @@ func (pm *PlaylistManager) GetUserPlaystate(username string) (User, bool) {
 	defer pm.mutex.RUnlock()
 
 	state, exists := pm.Playlist.Users[username]
+	// if paused, set position to the room position
+	if pm.Playlist.Paused {
+		state.Position = pm.Playlist.Position
+	}
 	return state, exists
 }
 
@@ -331,16 +364,6 @@ func (pm *PlaylistManager) GetUsers() (map[string]User, bool) {
 
 	return pm.Playlist.Users, len(pm.Playlist.Users) > 0
 
-}
-
-// SetLastMessageAge sets the last message age for the user
-func (pm *PlaylistManager) SetLastMessageAge(username string, age float64) {
-	pm.mutex.Lock()
-	defer pm.mutex.Unlock()
-
-	user := pm.Playlist.Users[username]
-	user.LastMessageAge = age
-	pm.Playlist.Users[username] = user
 }
 
 func (pm *PlaylistManager) GetPlaylist() Playlist {

@@ -2,7 +2,6 @@ package messages
 
 import (
 	"fmt"
-	"math"
 	"net"
 	"time"
 
@@ -12,17 +11,22 @@ import (
 
 type StateMessage struct {
 	State struct {
-		Ping struct {
-			LatencyCalculation       float64 `json:"latencyCalculation"`
-			ClientLatencyCalculation float64 `json:"clientLatencyCalculation"`
-			ServerRtt                int     `json:"serverRtt"`
-		} `json:"ping"`
+		// optional elements
+		IgnoringOnTheFly *IgnoringOnTheFly `json:"ignoringOnTheFly,omitempty"`
+
 		Playstate struct {
 			Position float64     `json:"position"`
 			Paused   bool        `json:"paused"`
 			DoSeek   bool        `json:"doSeek"`
 			SetBy    interface{} `json:"setBy"`
 		} `json:"playstate"`
+		Ping struct {
+			LatencyCalculation       float64 `json:"latencyCalculation"`
+			ClientLatencyCalculation float64 `json:"clientLatencyCalculation"`
+			ServerRtt                float64 `json:"serverRtt"`
+			YourLatency              float64 `json:"yourLatency"`
+			SenderLatency            float64 `json:"senderLatency"`
+		} `json:"ping"`
 	} `json:"State"`
 }
 
@@ -31,6 +35,11 @@ type UserState struct {
 	Paused   bool
 	DoSeek   bool
 	SetBy    interface{}
+}
+
+type IgnoringOnTheFly struct {
+	Client float64 `json:"client"`
+	Server float64 `json:"server"`
 }
 
 func SendInitialState(connection roomM.Connection) {
@@ -59,6 +68,7 @@ func SendInitialState(connection roomM.Connection) {
 	stateMessage := StateMessage{}
 	stateMessage.State.Ping.LatencyCalculation = float64(time.Now().UnixNano()) / 1e9
 	stateMessage.State.Ping.ServerRtt = 0
+
 	stateMessage.State.Playstate.DoSeek = false
 	stateMessage.State.Playstate.Position = roomState.Position
 	stateMessage.State.Playstate.Paused = roomState.Paused
@@ -86,16 +96,38 @@ func SendUserState(connection roomM.Connection) bool {
 
 	processingTime := float64(time.Now().UnixNano())/1e9 - latencyCalculation.ArivalTime
 
-	err = sendStateMessage(connection.Owner, connection.Conn, puser.Position, connection.Owner.PlaylistManager.Playlist.Paused, connection.Owner.PlaylistManager.Playlist.DoSeek, processingTime, connection.Owner.PlaylistManager.Playlist.SetBy, latencyCalculation.ClientTime, connection.Username)
+	yourLatency := latencyCalculation.ClientTime - connection.Owner.PlaylistManager.GetLastMessageAge(connection.Username)
+
+	Ignore := connection.Owner.PlaylistManager.Playlist.Ignore
+
+	err = sendStateMessage(connection.Owner, connection.Conn, puser.Position, connection.Owner.PlaylistManager.Playlist.Paused, connection.Owner.PlaylistManager.Playlist.DoSeek, processingTime, connection.Owner.PlaylistManager.Playlist.SetBy, latencyCalculation.ClientTime, connection.Username, yourLatency, Ignore)
 	if err != nil {
 		fmt.Println("Error sending state message:", err)
 		return true
 	}
 
+	// SetLastMessageAge
+	connection.Owner.PlaylistManager.SetLastMessageAge(connection.Username, float64(time.Now().UnixNano())/1e9)
+
 	return false
 }
 
-func sendStateMessage(room *roomM.Room, conn net.Conn, position float64, paused bool, doSeek bool, processingTime float64, stateChange string, clientTime float64, usr string) error {
+// SendGlobalState sends the global state to all users
+func SendGlobalState(connection roomM.Connection) {
+	if connection.Owner == nil {
+		return
+	}
+
+	for _, user := range connection.Owner.Users {
+		if user.Conn != nil {
+			SendUserState(*user)
+		}
+	}
+
+	connection.Owner.PlaylistManager.SetIgnoreInt(0)
+}
+
+func sendStateMessage(room *roomM.Room, conn net.Conn, position float64, paused bool, doSeek bool, processingTime float64, stateChange string, clientTime float64, usr string, LastMsgAge float64, Ignore float64) error {
 	if room == nil {
 		return fmt.Errorf("room cannot be nil")
 	}
@@ -107,9 +139,10 @@ func sendStateMessage(room *roomM.Room, conn net.Conn, position float64, paused 
 	stateMessage := StateMessage{}
 	stateMessage.State.Ping.LatencyCalculation = float64(time.Now().UnixNano()) / 1e9
 	if clientTime != 0 {
-		stateMessage.State.Ping.ClientLatencyCalculation = clientTime + processingTime
+		stateMessage.State.Ping.SenderLatency = clientTime + processingTime
 	}
-	stateMessage.State.Ping.ServerRtt = 0
+	stateMessage.State.Ping.YourLatency = LastMsgAge
+
 	stateMessage.State.Playstate.Position = position
 	stateMessage.State.Playstate.Paused = paused
 	stateMessage.State.Playstate.DoSeek = doSeek
@@ -117,6 +150,12 @@ func sendStateMessage(room *roomM.Room, conn net.Conn, position float64, paused 
 		stateChange = "Nobody"
 	}
 	stateMessage.State.Playstate.SetBy = stateChange
+
+	if Ignore != 0 {
+		stateMessage.State.IgnoringOnTheFly = &IgnoringOnTheFly{}
+		stateMessage.State.IgnoringOnTheFly.Client = Ignore
+		stateMessage.State.IgnoringOnTheFly.Server = Ignore
+	}
 
 	err := utils.SendJSONMessage(conn, stateMessage)
 	if err != nil {
@@ -183,7 +222,7 @@ var globalState = struct {
 	setBy    interface{}
 }{}
 
-func UpdateGlobalState(connection roomM.Connection, position, paused, doSeek, setBy interface{}, messageAge float64, latencyCalculation float64) {
+func UpdateGlobalState(connection roomM.Connection, position, paused, doSeek, setBy interface{}, messageAge float64, latencyCalculation float64, Ignore float64) {
 
 	room := connection.Owner
 
@@ -192,24 +231,20 @@ func UpdateGlobalState(connection roomM.Connection, position, paused, doSeek, se
 	globalState.doSeek = doSeek.(bool)
 	globalState.setBy = setBy
 
-	severCalculatedPosition, _ := room.PlaylistManager.CalculatePosition(messageAge)
-	diff := severCalculatedPosition - position.(float64)
+	// store IgnoreOnTheFly
+	if Ignore != 0 {
+		room.PlaylistManager.SetIgnoreInt(Ignore)
+		setBy = connection.Username
+	}
 
 	// check if the positon is within the acceptable range compared to the servers calculated position
-	if math.Abs(diff) < 1 || doSeek.(bool) || paused.(bool) {
-		// if it is, update the position
-		err := room.PlaylistManager.SetUserPlaystate(connection.Username, position.(float64), paused.(bool), doSeek.(bool), setBy.(string), messageAge)
-		if err != nil {
-			fmt.Println("Error storing user playstate")
-		}
-	} else {
-		// if not, change setby and update the position
 
-		err := room.PlaylistManager.SetUserPlaystate(connection.Username, severCalculatedPosition, paused.(bool), doSeek.(bool), setBy.(string), messageAge)
-		if err != nil {
-			fmt.Println("Error storing user playstate")
-		}
+	// if it is, update the position
+	err := room.PlaylistManager.SetUserPlaystate(connection.Username, position.(float64), paused.(bool), doSeek.(bool), setBy.(string), messageAge)
+	if err != nil {
+		fmt.Println("Error storing user playstate")
 	}
+
 }
 
 func GetLocalState() (interface{}, interface{}, interface{}, interface{}) {

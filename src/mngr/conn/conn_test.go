@@ -36,7 +36,8 @@ func TestAddConnection(t *testing.T) {
 	room := cm.CreateRoom(roomName)
 	cm.rooms[roomName] = room
 
-	roomConn := cm.AddConnection(username, roomName, state, conn)
+	roomConn, err := cm.AddConnection(username, roomName, state, conn)
+	assert.NoError(t, err)
 
 	assert.NotNil(t, roomConn)
 	assert.Equal(t, username, roomConn.Username)
