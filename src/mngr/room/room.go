@@ -69,7 +69,7 @@ func GetRoomByConnection(conn net.Conn, rooms map[string]*Room) *Room {
 	return nil
 }
 
-// get connection by conn
+// GetConnectionByConn get connection by conn
 func (r *Room) GetConnectionByConn(conn net.Conn) *Connection {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
@@ -172,7 +172,7 @@ func (r *Room) GetStateEventTicker() *event.Ticker {
 	return r.stateEventTicker
 }
 
-// list rooms
+// ListRooms list rooms
 func ListRooms(rooms map[string]*Room) []string {
 	roomNames := make([]string, 0)
 	for roomName := range rooms {
@@ -181,7 +181,7 @@ func ListRooms(rooms map[string]*Room) []string {
 	return roomNames
 }
 
-// ready state
+// SetUserReadyState ready state
 func (r *Room) SetUserReadyState(username string, isReady bool, manuallyInitiated bool) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
@@ -189,7 +189,7 @@ func (r *Room) SetUserReadyState(username string, isReady bool, manuallyInitiate
 	r.ReadyManager.SetUserReadyState(username, isReady, manuallyInitiated)
 }
 
-// print all ready states
+// PrintReadyStates print all ready states
 func (r *Room) PrintReadyStates() {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
@@ -202,7 +202,7 @@ func (r *Room) PrintReadyStates() {
 	}
 }
 
-// get play state
+// GetUserPlaystate get play state
 func (r *Room) GetUserPlaystate(username string) (interface{}, bool, error) {
 	if username == "" {
 		return nil, false, fmt.Errorf("username cannot be empty")

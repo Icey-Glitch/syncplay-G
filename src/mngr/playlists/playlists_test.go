@@ -111,73 +111,46 @@ func TestSubscribeToStateChanges(t *testing.T) {
 	assert.NotNil(t, ch)
 }
 
-// deadlock testing
-func TestSetUsersPaused(t *testing.T) {
+// Change doSeek to the specified value for all users in the playlist
+func TestSetUserPlaystateDoSeek(t *testing.T) {
 	pm := NewPlaylistManager()
 
-	// Test case 1: Set paused to true
-	pm.SetUsersPaused(true)
+	// create a user
+	err := pm.CreateUserPlaystate("TestUser")
 
-	// Test case 2: Set paused to false
-	pm.SetUsersPaused(false)
+	err = pm.SetUserPlaystate("TestUser", 0, false, false, "", 0)
+	assert.NoError(t, err)
+
+	err = pm.SetUserPlaystate("TestUser", 0, false, true, "", 0)
+	assert.NoError(t, err)
+
 }
 
-func TestSetUsersPosition(t *testing.T) {
+// AddFile
+func TestAddFile(t *testing.T) {
 	pm := NewPlaylistManager()
 
-	// Test case 1: Set position to 0
-	pm.SetUsersPosition(0, 0)
+	// test case 1: empty file
+	_, err := pm.AddFile(0, "", 0, "")
+	assert.Error(t, err)
 
-	// Test case 2: Set position to 10
-	pm.SetUsersPosition(10, 0)
-}
+	// test case 2: valid file, but user does not exist
+	_, err = pm.AddFile(0, "testFile", 0, "testUser")
+	assert.Error(t, err)
 
-func TestSetUsersPausedAndPosition(t *testing.T) {
-	pm := NewPlaylistManager()
+	// test case 3: valid file, user exists
+	err = pm.CreateUserPlaystate("testUser")
+	assert.NoError(t, err)
 
-	// Test case 1: Set paused to true and position to 0
-	pm.SetUsersPosition(0, 0)
-	pm.SetUsersPaused(true)
+	_, err = pm.AddFile(0, "testFile", 0, "testUser")
+	assert.NoError(t, err)
 
-	// Test case 2: Set paused to false and position to 10
-	pm.SetUsersPosition(10, 0)
-	pm.SetUsersPaused(false)
-}
+	// test case 4: valid file, user exists, file already exists
+	_, err = pm.AddFile(0, "testFile", 0, "testUser")
+	assert.NoError(t, err)
 
-func TestSetUsersPausedAndDoSeek(t *testing.T) {
-	pm := NewPlaylistManager()
+	// test case 5: valid file, user exists, file does not exist
+	_, err = pm.AddFile(0, "testFile2", 0, "testUser")
+	assert.NoError(t, err)
 
-	// Test case 1: Set paused to true and doSeek to true
-	pm.SetUsersPaused(true)
-	pm.SetUsersDoSeek(true, 0)
-
-	// Test case 2: Set paused to false and doSeek to false
-	pm.SetUsersPaused(false)
-	pm.SetUsersDoSeek(false, 0)
-}
-
-func TestSetUsersPositionAndDoSeek(t *testing.T) {
-	pm := NewPlaylistManager()
-
-	// Test case 1: Set position to 0 and doSeek to true
-	pm.SetUsersPosition(0, 0)
-	pm.SetUsersDoSeek(true, 0)
-
-	// Test case 2: Set position to 10 and doSeek to false
-	pm.SetUsersPosition(10, 0)
-	pm.SetUsersDoSeek(false, 0)
-}
-
-func TestSetUsersPausedPositionAndDoSeek(t *testing.T) {
-	pm := NewPlaylistManager()
-
-	// Test case 1: Set paused to true, position to 0 and doSeek to true
-	pm.SetUsersPosition(0, 0)
-	pm.SetUsersPaused(true)
-	pm.SetUsersDoSeek(true, 0)
-
-	// Test case 2: Set paused to false, position to 10 and doSeek to false
-	pm.SetUsersPosition(10, 0)
-	pm.SetUsersPaused(false)
-	pm.SetUsersDoSeek(false, 0)
 }

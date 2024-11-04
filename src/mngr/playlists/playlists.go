@@ -96,12 +96,7 @@ func (pm *PlaylistManager) SetUserPlaystate(username string, position float64, p
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
-	user, exists := pm.Playlist.Users[username]
-	if !exists {
-		return fmt.Errorf("user %s does not exist in the playlist", username)
-	}
-
-	if doSeek != user.DoSeek {
+	if doSeek != pm.Playlist.DoSeek {
 		err := pm.SetUsersDoSeek(doSeek, messageAge)
 		if err != nil {
 			return err
@@ -111,10 +106,18 @@ func (pm *PlaylistManager) SetUserPlaystate(username string, position float64, p
 	if paused != pm.Playlist.Paused {
 		pm.SetUsersPaused(paused)
 
-		pm.SetUsersPosition(position, messageAge)
+		err := pm.SetUsersPosition(position, messageAge)
+		if err != nil {
+			return err
+		}
 	}
 
 	// TODO: update room paused state if one user unpauses or pause all users if one user pauses
+	// check if user exists
+	_, exists := pm.Playlist.Users[username]
+	if !exists {
+		return fmt.Errorf("user %s does not exist in the playlist", username)
+	}
 
 	pm.Playlist.Users[username] = User{
 		Username: username,
@@ -147,14 +150,14 @@ func (pm *PlaylistManager) RemoveUserPlaystate(username string) error {
 }
 
 // AddFile adds a file to the playlist
-func (pm *PlaylistManager) AddFile(duration float64, name string, size float64, User string) File {
+func (pm *PlaylistManager) AddFile(duration float64, name string, size float64, User string) (File, error) {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
 	// check if file already exists
 	for _, file := range pm.Playlist.Files {
 		if file.Name == name {
-			return file
+			return file, nil
 		}
 	}
 
@@ -165,11 +168,12 @@ func (pm *PlaylistManager) AddFile(duration float64, name string, size float64, 
 			Name:     name,
 			Duration: duration,
 		})
+
 	} else {
 		// add to the user's playlist in their user object
 		user, exists := pm.Playlist.Users[User]
 		if !exists {
-			return File{}
+			return File{}, fmt.Errorf("user %s does not exist in the playlist", User)
 		}
 
 		user.UsrPlaylist = append(user.UsrPlaylist, File{
@@ -179,10 +183,16 @@ func (pm *PlaylistManager) AddFile(duration float64, name string, size float64, 
 		})
 		pm.Playlist.Users[User] = user
 
+		return user.UsrPlaylist[len(user.UsrPlaylist)-1], nil
+
 	}
 
-	//pm.Playlist.SetBy = setBy
-	return pm.Playlist.Files[len(pm.Playlist.Files)-1]
+	// return the file, and nil error
+	// check if the Files array is empty
+	if len(pm.Playlist.Files) == 0 {
+		return File{}, fmt.Errorf("Files array is empty")
+	}
+	return pm.Playlist.Files[len(pm.Playlist.Files)-1], nil
 }
 
 // helper func

@@ -14,7 +14,7 @@ type StateMessage struct {
 	State struct {
 		Ping struct {
 			LatencyCalculation       float64 `json:"latencyCalculation"`
-			clientLatencyCalculation float64 `json:"clientLatencyCalculation"`
+			ClientLatencyCalculation float64 `json:"clientLatencyCalculation"`
 			ServerRtt                int     `json:"serverRtt"`
 		} `json:"ping"`
 		Playstate struct {
@@ -107,7 +107,7 @@ func sendStateMessage(room *roomM.Room, conn net.Conn, position float64, paused 
 	stateMessage := StateMessage{}
 	stateMessage.State.Ping.LatencyCalculation = float64(time.Now().UnixNano()) / 1e9
 	if clientTime != 0 {
-		stateMessage.State.Ping.clientLatencyCalculation = clientTime + processingTime
+		stateMessage.State.Ping.ClientLatencyCalculation = clientTime + processingTime
 	}
 	stateMessage.State.Ping.ServerRtt = 0
 	stateMessage.State.Playstate.Position = position

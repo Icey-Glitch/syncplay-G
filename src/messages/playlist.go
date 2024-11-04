@@ -2,7 +2,6 @@ package messages
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/Icey-Glitch/Syncplay-G/mngr/playlists"
 
@@ -13,8 +12,8 @@ import (
 type PlaylistChangeMessage struct {
 	Set struct {
 		PlaylistChange struct {
-			User  interface{}      `json:"user"`
-			Files []playlists.File `json:"files"`
+			User  interface{} `json:"user"`
+			Files interface{} `json:"files"`
 		} `json:"playlistChange"`
 	} `json:"Set"`
 }
@@ -72,45 +71,7 @@ func HandlePlaylistChangeMessage(connection roomM.Connection, playlistChange map
 		return
 	}
 
-	PlaylistObject := room.PlaylistManager.GetPlaylist()
-
-	fmt.Println("playlistChange: ", playlistChange) // map[files:[https://www.youtube.com/watch?v=0TVdTvWzr-A]]
-
-	files, ok := playlistChange["files"].([]interface{})
-	if !ok || files == nil {
-		fmt.Println("Error: files is nil or not a slice of interfaces")
-		return
-	}
-
-	// array of files to be added to the playlist
-	FileObj := make([]playlists.File, len(files))
-	size := 0.0
-	duration := 0.0
-
-	// Sanitize URLs
-	for i, file := range files {
-		if url, ok := file.(string); ok {
-			files[i] = strings.TrimSpace(url)
-			fmt.Println("Sanitized URL: ", files[i])
-			// check if it is empty
-			if files[i] != "" || files[i] != " " || files[i] != nil {
-				FileObj[i] = playlists.File{
-					Size:     size,
-					Name:     url,
-					Duration: duration,
-				}
-				room.PlaylistManager.AddFile(duration, url, size, connection.Username)
-			}
-
-		}
-	}
-
-	//room.PlaylistManager.AddFiles(FileObj, connection.Username)
-
-	PlaylistObject.Files = connection.Owner.PlaylistManager.Playlist.Files
-	PlaylistObject.User.Username = connection.Username
-
-	SendPlaylistChangeMessage(connection)
+	SendPlaylistChangeMessage(connection, playlistChange)
 }
 
 // ExtractStatePlaystateArguments extract
@@ -170,7 +131,15 @@ func SendPlaylistIndexMessage(connection roomM.Connection) {
 
 }
 
-func SendPlaylistChangeMessage(connection roomM.Connection) {
+// SendPlaylistChangeMessage Takes in list of extracted files as a map of strings and then sends the message to all connections in the room
+func SendPlaylistChangeMessage(connection roomM.Connection, files map[string]interface{}) {
+	if files == nil {
+		// empty files
+		files = map[string]interface{}{
+			"files": []string{},
+		}
+	}
+
 	if connection.Owner == nil {
 		return
 	}
@@ -181,15 +150,15 @@ func SendPlaylistChangeMessage(connection roomM.Connection) {
 	playlistChangeMessage := PlaylistChangeMessage{
 		Set: struct {
 			PlaylistChange struct {
-				User  interface{}      `json:"user"`
-				Files []playlists.File `json:"files"`
+				User  interface{} `json:"user"`
+				Files interface{} `json:"files"`
 			} `json:"playlistChange"`
 		}{
 			PlaylistChange: struct {
-				User  interface{}      `json:"user"`
-				Files []playlists.File `json:"files"`
+				User  interface{} `json:"user"`
+				Files interface{} `json:"files"`
 			}{
-				Files: PlaylistObject.Files,
+				Files: files["files"],
 				User:  PlaylistObject.User.Username,
 			},
 		},
@@ -199,6 +168,8 @@ func SendPlaylistChangeMessage(connection roomM.Connection) {
 	if playlistChangeMessage.Set.PlaylistChange.Files == nil {
 		playlistChangeMessage.Set.PlaylistChange.Files = []playlists.File{}
 	}
+
+	fmt.Println("playlistChangeMessage: ", playlistChangeMessage)
 
 	utils.SendJSONMessageMultiCast(playlistChangeMessage, connection.Owner.Name)
 }
@@ -232,8 +203,17 @@ func HandleFileMessage(connection roomM.Connection, file map[string]interface{})
 	}
 
 	// store the user data
-	fileObj := room.PlaylistManager.AddFile(duration.(float64), name.(string), size.(float64), connection.Username)
-	room.PlaylistManager.SetUserFile(connection.Username, fileObj)
+	fileObj, err := room.PlaylistManager.AddFile(duration.(float64), name.(string), size.(float64), connection.Username)
+	if err != nil {
+		fmt.Println("Error: failed to add file to playlist")
+		return
+	}
+
+	err = room.PlaylistManager.SetUserFile(connection.Username, fileObj)
+	if err != nil {
+		fmt.Println("Error: failed to set user file")
+		return
+	}
 
 	// create the file message
 	fileMessage := map[string]interface{}{

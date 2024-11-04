@@ -325,7 +325,7 @@ func handleChatMessage(chatData interface{}, conn net.Conn) {
 
 func sendSessionInformation(connection roomM.Connection) {
 	messages.SendReadyMessageInit(connection)
-	messages.SendPlaylistChangeMessage(connection)
+	messages.SendPlaylistChangeMessage(connection, nil)
 	messages.SendPlaylistIndexMessage(connection)
 }
 

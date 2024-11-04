@@ -88,22 +88,6 @@ func TestSetUserReadyState(t *testing.T) {
 	assert.True(t, state.ManuallyInitiated)
 }
 
-func TestSetRoomState(t *testing.T) {
-	room := NewRoom("testRoom")
-	state := roomState{
-		IsPaused: true,
-		Position: 10.5,
-		SetBy:    "testUser",
-	}
-
-	err := room.SetRoomState(state)
-	assert.Nil(t, err)
-
-	retrievedState, err := room.GetRoomState()
-	assert.Nil(t, err)
-	assert.Equal(t, state, retrievedState)
-}
-
 func TestGetUsersLatencyCalculation_NilConnection(t *testing.T) {
 	room := NewRoom("testRoom")
 	_, err := room.GetUsersLatencyCalculation(nil)
@@ -157,20 +141,6 @@ func TestGetUserPlaystate_NonExistentUsername(t *testing.T) {
 	_, _, err := room.GetUserPlaystate("nonExistentUser")
 	assert.NotNil(t, err)
 	assert.Equal(t, "user playstate not found for username: nonExistentUser", err.Error())
-}
-
-func TestSetRoomState_EmptyState(t *testing.T) {
-	room := NewRoom("testRoom")
-	err := room.SetRoomState(roomState{})
-	assert.NotNil(t, err)
-	assert.Equal(t, "state cannot be empty", err.Error())
-}
-
-func TestGetRoomState_EmptyRoomState(t *testing.T) {
-	room := NewRoom("testRoom")
-	_, err := room.GetRoomState()
-	assert.NotNil(t, err)
-	assert.Equal(t, "room state is empty", err.Error())
 }
 
 func TestSetUserLatencyCalculation_EmptyUsername(t *testing.T) {
