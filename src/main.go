@@ -33,6 +33,9 @@ var (
 func main() {
 	features := Features.NewFeatures()
 	Features.SetGlobalFeatures(*features)
+	config := Features.NewConfig()
+	Features.SetConfig(*config)
+
 	ln, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		log.Fatal("Error starting server:", err)
@@ -285,7 +288,7 @@ func handleStateMessage(stateMsg interface{}, conn net.Conn) {
 			clientIgnoringOnTheFly = 0
 		}
 
-		//fmt.Println("Ignoring on the fly:", clientIgnoringOnTheFly)
+		fmt.Println("Ignoring on the fly:", clientIgnoringOnTheFly)
 	}
 
 	if playstate, ok := stateData["playstate"].(map[string]interface{}); ok {

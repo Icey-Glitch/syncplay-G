@@ -31,5 +31,8 @@ func SendMessageToUser(message string, username string, conn net.Conn) {
 	chatMessage.Chat.Message = message
 	chatMessage.Chat.Username = username
 
-	utils.SendJSONMessage(conn, chatMessage)
+	err := utils.SendJSONMessage(conn, chatMessage)
+	if err != nil {
+		return
+	}
 }

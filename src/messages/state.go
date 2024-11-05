@@ -82,11 +82,6 @@ func SendInitialState(connection roomM.Connection) {
 
 func SendUserState(connection roomM.Connection) bool {
 	//fmt.Println("Sending user state")
-	puser, exists := connection.Owner.PlaylistManager.GetUserPlaystate(connection.Username)
-	if !exists {
-		fmt.Println("Error: User does not exist in the playlist:", connection.Username)
-		return true
-	}
 
 	latencyCalculation, err := connection.Owner.GetUsersLatencyCalculation(&connection)
 	if err != nil {
@@ -100,7 +95,7 @@ func SendUserState(connection roomM.Connection) bool {
 
 	Ignore := connection.Owner.PlaylistManager.Playlist.Ignore
 
-	err = sendStateMessage(connection.Owner, connection.Conn, puser.Position, connection.Owner.PlaylistManager.Playlist.Paused, connection.Owner.PlaylistManager.Playlist.DoSeek, processingTime, connection.Owner.PlaylistManager.Playlist.SetBy, latencyCalculation.ClientTime, connection.Username, yourLatency, Ignore)
+	err = sendStateMessage(connection.Owner, connection.Conn, connection.Owner.PlaylistManager.Playlist.Position, connection.Owner.PlaylistManager.Playlist.Paused, connection.Owner.PlaylistManager.Playlist.DoSeek, processingTime, connection.Owner.PlaylistManager.Playlist.SetBy, latencyCalculation.ClientTime, connection.Username, yourLatency, Ignore)
 	if err != nil {
 		fmt.Println("Error sending state message:", err)
 		return true
@@ -235,14 +230,19 @@ func UpdateGlobalState(connection roomM.Connection, position, paused, doSeek, se
 	if Ignore != 0 {
 		room.PlaylistManager.SetIgnoreInt(Ignore)
 		setBy = connection.Username
-	}
+		err := room.PlaylistManager.SetUserPlaystate(connection.Username, position.(float64), paused.(bool), doSeek.(bool), setBy.(string), messageAge, true)
+		if err != nil {
+			fmt.Println("Error storing user playstate")
+		}
+	} else {
 
-	// check if the positon is within the acceptable range compared to the servers calculated position
+		// check if the positon is within the acceptable range compared to the servers calculated position
 
-	// if it is, update the position
-	err := room.PlaylistManager.SetUserPlaystate(connection.Username, position.(float64), paused.(bool), doSeek.(bool), setBy.(string), messageAge)
-	if err != nil {
-		fmt.Println("Error storing user playstate")
+		// if it is, update the position
+		err := room.PlaylistManager.SetUserPlaystate(connection.Username, position.(float64), paused.(bool), doSeek.(bool), setBy.(string), messageAge, false)
+		if err != nil {
+			fmt.Println("Error storing user playstate")
+		}
 	}
 
 }

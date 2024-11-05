@@ -37,6 +37,10 @@ in
 
       vscodiumNew
 
+      pprof
+      perf_data_converter
+      graphviz
+
       jetbrains.goland
 
       nil
@@ -49,6 +53,7 @@ in
       delve
       golint
       gopls
+      linuxKernel.packages.linux_6_11.perf
     ];
 
     # name the shell

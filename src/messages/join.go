@@ -24,13 +24,13 @@ func HandleJoinMessage(conn net.Conn, msg map[string]interface{}) {
 		_ = cm.CreateRoom(roomName)
 	}
 
-	connection, coner := cm.AddConnection(username, roomName, nil, conn)
-	if coner != nil {
-		fmt.Println("Error adding connection to room:", coner)
+	connection, err := cm.AddConnection(username, roomName, nil, conn)
+	if err != nil {
+		fmt.Println("Error adding connection to room:", err)
 		return
 	}
 
-	err := BroadcastJoinAnnouncement(*connection)
+	err = BroadcastJoinAnnouncement(*connection)
 	if err != nil {
 		fmt.Printf("Failed to send Join Anouncement" + err.Error())
 		return

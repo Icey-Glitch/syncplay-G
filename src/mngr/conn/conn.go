@@ -61,7 +61,7 @@ func (cm *ConnectionManager) AddConnection(username, roomName string, state inte
 	room := cm.rooms[roomName]
 	err := room.AddConnection(connection)
 	if err != nil {
-		err1 := fmt.Errorf("Failed to add connection to room: %s", err.Error())
+		err1 := fmt.Errorf("failed to add connection to room: %s", err.Error())
 		return nil, err1
 	}
 

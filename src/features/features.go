@@ -13,6 +13,10 @@ type Features struct {
 	MaxFilenameLength    int  `json:"maxFilenameLength"`
 }
 
+type Config struct {
+	DesyncRange float64 `json:"desyncRange"`
+}
+
 // GlobalFeatures is a global variable that holds the features of the server
 var GlobalFeatures Features
 
@@ -39,5 +43,24 @@ func NewFeatures() *Features {
 		MaxUsernameLength:    20,
 		MaxRoomNameLength:    20,
 		MaxFilenameLength:    50,
+	}
+}
+
+var GlobalConfig Config
+
+// GetConfig returns the config of the server
+func GetConfig() Config {
+	return GlobalConfig
+}
+
+// SetConfig sets the config of the server
+func SetConfig(config Config) {
+	GlobalConfig = config
+}
+
+// NewConfig returns a new Config struct
+func NewConfig() *Config {
+	return &Config{
+		DesyncRange: 0.5,
 	}
 }

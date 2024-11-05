@@ -2,6 +2,7 @@ package playlists
 
 import (
 	"fmt"
+	"math"
 	"sync"
 
 	Features "github.com/Icey-Glitch/Syncplay-G/features"
@@ -55,7 +56,7 @@ type PlaylistManager struct {
 
 func NewPlaylistManager() *PlaylistManager {
 	return &PlaylistManager{
-		Playlist:   Playlist{Users: make(map[string]User), Paused: true, DoSeek: false},
+		Playlist:   Playlist{Users: make(map[string]User), Paused: true, DoSeek: false, PositionTime: 0},
 		stateEvent: event.NewEvent(),
 	}
 }
@@ -89,7 +90,7 @@ func (pm *PlaylistManager) CreateUserPlaystate(username string) error {
 	return nil
 }
 
-func (pm *PlaylistManager) SetUserPlaystate(username string, position float64, paused bool, doSeek bool, setBy string, messageAge float64) error {
+func (pm *PlaylistManager) SetUserPlaystate(username string, position float64, paused bool, doSeek bool, setBy string, messageAge float64, Ignore bool) error {
 	if username == "" {
 		return fmt.Errorf("username cannot be empty")
 	}
@@ -97,20 +98,41 @@ func (pm *PlaylistManager) SetUserPlaystate(username string, position float64, p
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
-	if doSeek != pm.Playlist.DoSeek {
-		err := pm.SetUsersDoSeek(doSeek, messageAge)
-		if err != nil {
-			return err
-		}
-	}
-
-	if paused != pm.Playlist.Paused {
-		pm.SetUsersPaused(paused)
-
+	if !Ignore {
+		// check if the possiton is within acceptable range else update the position and set by to inform other users if there is a desync
 		err := pm.SetUsersPosition(position, messageAge)
 		if err != nil {
 			return err
 		}
+
+		if math.Abs(pm.Playlist.Position-position) > Features.GlobalConfig.DesyncRange {
+			pm.Playlist.Position = position
+			pm.Playlist.PositionTime = messageAge
+			pm.Playlist.SetBy = setBy
+		}
+
+		if doSeek != pm.Playlist.DoSeek {
+			err = pm.SetUsersDoSeek(doSeek, messageAge)
+			if err != nil {
+				return err
+			}
+		}
+
+		if paused != pm.Playlist.Paused {
+			pm.SetUsersPaused(paused)
+
+			err = pm.SetUsersPosition(position, messageAge)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		pm.Playlist.Paused = paused
+		pm.Playlist.DoSeek = doSeek
+		pm.Playlist.Position = position
+		pm.Playlist.PositionTime = messageAge
+		pm.Playlist.SetBy = setBy
+
 	}
 
 	// TODO: update room paused state if one user unpauses or pause all users if one user pauses
@@ -193,7 +215,7 @@ func (pm *PlaylistManager) AddFile(duration float64, name string, size float64, 
 	// return the file, and nil error
 	// check if the Files array is empty
 	if len(pm.Playlist.Files) == 0 {
-		return File{}, fmt.Errorf("Files array is empty")
+		return File{}, fmt.Errorf("files array is empty")
 	}
 	return pm.Playlist.Files[len(pm.Playlist.Files)-1], nil
 }
