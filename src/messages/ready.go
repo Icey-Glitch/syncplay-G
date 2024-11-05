@@ -2,6 +2,7 @@ package messages
 
 import (
 	"fmt"
+
 	roomM "github.com/Icey-Glitch/Syncplay-G/mngr/room"
 	"github.com/Icey-Glitch/Syncplay-G/utils"
 )
@@ -52,7 +53,20 @@ func SendReadyMessageInit(connection roomM.Connection) {
 	utils.SendJSONMessageMultiCast(readyMessage, room.Name)
 }
 
-func HandleReadyMessage(ready map[string]interface{}, connection roomM.Connection) {
+func HandleReadyMessage(value interface{}, usr *roomM.Connection) {
+	ready, ok := value.(map[string]interface{})
+	if !ok {
+		fmt.Println("Error: ready is not a map")
+		return
+	}
+	if usr == nil {
+		fmt.Println("Error: Connection not found for ready message")
+		return
+	}
+	readyMessage(ready, *usr)
+}
+
+func readyMessage(ready map[string]interface{}, connection roomM.Connection) {
 
 	// Unmarshal the incoming JSON data into ClientReadyMessage struct
 	var clientReadyMessage ClientReadyMessage

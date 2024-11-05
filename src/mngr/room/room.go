@@ -70,16 +70,16 @@ func GetRoomByConnection(conn net.Conn, rooms map[string]*Room) *Room {
 }
 
 // GetConnectionByConn get connection by conn
-func (r *Room) GetConnectionByConn(conn net.Conn) *Connection {
+func (r *Room) GetConnectionByConn(conn net.Conn) (user *Connection, err error) {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
 	for _, connection := range r.Users {
 		if connection.Conn == conn {
-			return connection
+			return connection, nil
 		}
 	}
-	return nil
+	return nil, fmt.Errorf("connection not found")
 }
 
 func (r *Room) GetConnectionByUsername(username string) *Connection {
@@ -114,6 +114,11 @@ func (r *Room) GetConnections() []*Connection {
 }
 
 func (r *Room) AddConnection(connection *Connection) error {
+	// check if room is valid
+	if connection.Owner == nil {
+		return fmt.Errorf("room is nil")
+	}
+
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -121,6 +126,10 @@ func (r *Room) AddConnection(connection *Connection) error {
 	for _, conn := range r.Users {
 		if conn.Conn == connection.Conn {
 			return fmt.Errorf("connection already exists")
+		}
+
+		if conn.Username == connection.Username {
+			return fmt.Errorf("username already exists")
 		}
 	}
 

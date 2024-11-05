@@ -59,6 +59,7 @@ func (cm *ConnectionManager) AddConnection(username, roomName string, state inte
 	}
 
 	room := cm.rooms[roomName]
+
 	err := room.AddConnection(connection)
 	if err != nil {
 		err1 := fmt.Errorf("failed to add connection to room: %s", err.Error())
@@ -91,6 +92,10 @@ func (cm *ConnectionManager) CreateRoom(roomName string) *roomM.Room {
 func (cm *ConnectionManager) GetRoom(roomName string) *roomM.Room {
 	cm.mutex.RLock()
 	defer cm.mutex.RUnlock()
+
+	if cm.rooms[roomName] == nil {
+		return nil
+	}
 
 	return cm.rooms[roomName]
 }

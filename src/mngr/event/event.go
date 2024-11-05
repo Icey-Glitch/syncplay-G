@@ -50,56 +50,19 @@ func (e *Event) Publish(data interface{}) {
 	}
 }
 
-/*
-acctuated event system:
-
-takes a time.Duration and a function to call after the duration has passed, repeatedly if desired.
-returns an ManagedEvent that can be stopped with the Stop(), this will then delete the managed event from the event manager.
-start the event with Start() and it will be added to the event manager.
-
-func() should accept any number of arguments and return a bool.
-
-if the function returns true, the event will be stopped.
-let the function return false to keep the event running, if the event is set to repeat.
-if the function errors, the event will be stopped.
-
-ability to create a timer that will call multiple functions in sequence
-
-
-
-
-usage:
-func main() {
-	event := NewManagedEvent(time.Second * 5, run(), true)
-	event.Start()
-}
-func run() bool {
-	fmt.Println("5 seconds have passed")
-	return true
-}
-
-TODO:
-- add ability to pass in a function that will be called after the timer has expired
-- better deinitialization of the event
-- ability to add a listner to another retun value of the called function
-*/
-
 type ManagedEvent struct {
 	Event
-	Ticker    *Ticker
-	Function  reflect.Value
-	Params    []reflect.Value
-	StopEvent bool
-
-	owner *EventManager
+	Ticker   *Ticker
+	Function reflect.Value
+	Params   []reflect.Value
+	stopChan chan struct{}
+	owner    *EventManager
 }
 
 type Ticker struct {
 	interval   int // seconds
 	Repeat     bool
 	StopTicker bool
-
-	linkedEvents []*ManagedEvent
 }
 
 func (em *EventManager) NewManagedEvent(interval int, fn interface{}, repeat bool, params []interface{}, ticker ...*Ticker) *ManagedEvent {
@@ -109,67 +72,56 @@ func (em *EventManager) NewManagedEvent(interval int, fn interface{}, repeat boo
 		paramsValue[i] = reflect.ValueOf(param)
 	}
 
-	// if ticker is provided, use it
-	if len(ticker) > 0 {
-		ne := &ManagedEvent{
-			Event:     Event{},
-			Ticker:    ticker[0],
-			Function:  fnValue,
-			Params:    paramsValue,
-			StopEvent: false,
-			owner:     em,
-		}
-		em.AddEvent(ne)
-		return ne
-	}
-
 	ne := &ManagedEvent{
-		Event:     Event{},
-		Ticker:    &Ticker{interval: interval, Repeat: repeat},
-		Function:  fnValue,
-		Params:    paramsValue,
-		StopEvent: false,
-		owner:     em,
+		Event:    Event{},
+		Ticker:   &Ticker{interval: interval, Repeat: repeat},
+		Function: fnValue,
+		Params:   paramsValue,
+		stopChan: make(chan struct{}),
+		owner:    em,
 	}
-	em.AddEvent(ne)
 
+	if len(ticker) > 0 {
+		ne.Ticker = ticker[0]
+	}
+
+	em.AddEvent(ne)
 	return ne
 }
 
 func (e *ManagedEvent) Start() {
 	go func() {
+		ticker := time.NewTicker(time.Duration(e.Ticker.interval) * time.Second)
+		defer ticker.Stop()
+
 		for {
 			select {
-			case <-time.After(time.Duration(e.Ticker.interval) * time.Second):
-				if e.StopEvent {
-					return
-				}
+			case <-ticker.C:
 				// Check if any of the parameters are nil
 				for _, param := range e.Params {
 					if param.Kind() == reflect.Ptr || param.Kind() == reflect.Interface || param.Kind() == reflect.Map || param.Kind() == reflect.Slice || param.Kind() == reflect.Chan {
 						if param.IsNil() {
 							fmt.Println("Error: One of the parameters is nil")
+							e.Stop()
 							return
 						}
 					}
 				}
 				// check return value of function
 				ret := e.Function.Call(e.Params)
-				if !e.Ticker.Repeat {
+				if !e.Ticker.Repeat || ret[0].Bool() {
 					e.Stop()
 					return
 				}
-				if ret[0].Bool() == true {
-					e.Stop()
-					return
-				}
+			case <-e.stopChan:
+				return
 			}
 		}
 	}()
 }
 
 func (e *ManagedEvent) Stop() {
-	e.StopEvent = true
+	close(e.stopChan)
 	if e.owner != nil {
 		e.owner.RemoveEvent(e)
 	}
@@ -182,10 +134,6 @@ func NewTicker(interval int, repeat bool) *Ticker {
 		Repeat:     repeat,
 		StopTicker: false,
 	}
-}
-
-func (t *Ticker) Stop() {
-	t.StopTicker = true
 }
 
 // EventManager manages events

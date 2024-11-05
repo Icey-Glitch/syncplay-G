@@ -73,12 +73,19 @@ func handleClient(conn net.Conn) {
 
 	for {
 		var msg map[string]interface{}
-		if err := decoder.Decode(&msg); err == io.EOF {
+		if err = decoder.Decode(&msg); err == io.EOF {
 			cm := connM.GetConnectionManager()
 			fmt.Println("Client disconnected")
 			room := cm.GetRoomByConnection(conn)
+			if room == nil {
+				return
+			}
 
-			usr := room.GetConnectionByConn(conn)
+			usr, err := room.GetConnectionByConn(conn)
+			if err != nil {
+				fmt.Println("Error getting connection by conn:", err)
+				return
+			}
 			messages.HandleUserLeftMessage(*usr)
 			cm.RemoveConnection(conn)
 			return
@@ -164,7 +171,11 @@ func handleHelloMessage(helloMsg interface{}, conn net.Conn) {
 
 	cm := connM.GetConnectionManager()
 	if cm.GetRoom(roomName) == nil {
-		_ = cm.CreateRoom(roomName)
+		roomObj := cm.CreateRoom(roomName)
+		if roomObj == nil {
+			fmt.Println("Failed to create room")
+			return
+		}
 	}
 
 	connection, coner := cm.AddConnection(username, roomName, nil, conn)
@@ -199,7 +210,11 @@ func handleSetMessage(setMsg interface{}, conn net.Conn) {
 	// Deserialize the set message
 	cm := connM.GetConnectionManager()
 	room := cm.GetRoomByConnection(conn)
-	usr := room.GetConnectionByConn(conn)
+	usr, err := room.GetConnectionByConn(conn)
+	if err != nil {
+		fmt.Println("Error getting connection by conn:", err)
+		return
+	}
 
 	setData, ok := setMsg.(map[string]interface{})
 	if !ok {
@@ -212,71 +227,30 @@ func handleSetMessage(setMsg interface{}, conn net.Conn) {
 	for key, value := range setData {
 		switch key {
 		case "user":
-			handleUserMessage(value, conn)
+			messages.HandleUserMessage(value, conn)
 		case "ready":
-			handleReadyMessage(value, usr)
+			messages.HandleReadyMessage(value, usr)
 		case "playlistChange":
-			handlePlaylistChangeMessage(value, usr)
+			messages.HandlePlaylistChangeMessage(value, *usr)
 		case "playlistIndex":
-			handlePlaylistIndexMessage(value, usr)
+			messages.HandlePlaylistIndexMessage(*usr, value)
 		case "file":
-			handleFileMessage(value, usr)
+			messages.HandleFileMessage(*usr, value)
 		default:
 			fmt.Printf("Unknown message type: %s\n", key)
 		}
 	}
 }
 
-func handleUserMessage(value interface{}, conn net.Conn) {
-	user, ok := value.(map[string]interface{})
-	if !ok || user == nil {
-		fmt.Println("Error: user is nil or not a map")
-		return
-	}
-	messages.HandleJoinMessage(conn, user)
-}
-
-func handleReadyMessage(value interface{}, usr *roomM.Connection) {
-	ready, ok := value.(map[string]interface{})
-	if !ok {
-		fmt.Println("Error: ready is not a map")
-		return
-	}
-	messages.HandleReadyMessage(ready, *usr)
-}
-
-func handlePlaylistChangeMessage(value interface{}, usr *roomM.Connection) {
-	playlistChange, ok := value.(map[string]interface{})
-	if !ok || playlistChange == nil {
-		fmt.Println("Error: playlistChange is nil or not a map")
-		return
-	}
-	messages.HandlePlaylistChangeMessage(*usr, playlistChange)
-}
-
-func handlePlaylistIndexMessage(value interface{}, usr *roomM.Connection) {
-	playlistIndex, ok := value.(map[string]interface{})
-	if !ok || playlistIndex == nil {
-		fmt.Println("Error: playlistIndex is nil or not a map")
-		return
-	}
-	messages.HandlePlaylistIndexMessage(*usr, playlistIndex)
-}
-
-func handleFileMessage(value interface{}, usr *roomM.Connection) {
-	file, ok := value.(map[string]interface{})
-	if !ok || file == nil {
-		fmt.Println("Error: file is nil or not a map")
-		return
-	}
-	messages.HandleFileMessage(*usr, file)
-}
-
 // func handle list message
 func handleListMessage(conn net.Conn) {
 	cm := connM.GetConnectionManager()
 	room := cm.GetRoomByConnection(conn)
-	usr := room.GetConnectionByConn(conn)
+	usr, err := room.GetConnectionByConn(conn)
+	if err != nil {
+		fmt.Println("Error getting connection by conn:", err)
+		return
+	}
 
 	messages.HandleListRequest(*usr)
 
@@ -285,7 +259,11 @@ func handleListMessage(conn net.Conn) {
 func handleStateMessage(stateMsg interface{}, conn net.Conn) {
 	cm := connM.GetConnectionManager()
 	room := cm.GetRoomByConnection(conn)
-	user := room.GetConnectionByConn(conn)
+	user, err := room.GetConnectionByConn(conn)
+	if err != nil {
+		fmt.Println("Error getting connection by conn:", err)
+		return
+	}
 	var position, paused, doSeek, setBy interface{}
 	var messageAge, latencyCalculation, clientlatency, rtt float64
 	var clientIgnoringOnTheFly float64

@@ -28,7 +28,13 @@ type PlaylistIndexMessage struct {
 }
 
 // HandlePlaylistIndexMessage handle
-func HandlePlaylistIndexMessage(connection roomM.Connection, playlistIndex map[string]interface{}) {
+func HandlePlaylistIndexMessage(connection roomM.Connection, value interface{}) {
+
+	playlistIndex, ok := value.(map[string]interface{})
+	if !ok || playlistIndex == nil {
+		fmt.Println("Error: playlistIndex is nil or not a map")
+		return
+	}
 
 	room := connection.Owner
 	if room == nil {
@@ -62,9 +68,15 @@ func HandlePlaylistIndexMessage(connection roomM.Connection, playlistIndex map[s
 	SendPlaylistIndexMessage(connection)
 }
 
-func HandlePlaylistChangeMessage(connection roomM.Connection, playlistChange map[string]interface{}) {
+func HandlePlaylistChangeMessage(value interface{}, connection roomM.Connection) {
 	// client {"Set": {"playlistChange": {"files": ["https://www.youtube.com/watch?v=0TVdTvWzr-A"]}}}
 	// server {"Set": {"playlistChange": {"user": "icey", "files": ["https://www.youtube.com/watch?v=0TVdTvWzr-A"]}}}
+
+	playlistChange, ok := value.(map[string]interface{})
+	if !ok || playlistChange == nil {
+		fmt.Println("Error: playlistChange is nil or not a map")
+		return
+	}
 
 	room := connection.Owner
 	if room == nil {
@@ -174,12 +186,18 @@ func SendPlaylistChangeMessage(connection roomM.Connection, files map[string]int
 	utils.SendJSONMessageMultiCast(playlistChangeMessage, connection.Owner.Name)
 }
 
-func HandleFileMessage(connection roomM.Connection, file map[string]interface{}) {
+func HandleFileMessage(connection roomM.Connection, value interface{}) {
 	// Client >> {"Set": {"file": {"duration": 596.458, "name": "BigBuckBunny.avi", "size": 220514438}}}
 	// Server (to all who can see room) << {"Set": {"user": {"Bob": {"room": {"name": "SyncRoom"}, "file": {"duration": 596.458, "name": "BigBuckBunny.avi", "size": "220514438"}}}}}
 
 	// Client >> {"Set": {"file": {"duration": 596.0, "name": "6fa13ad43fea", "size": "44657bd3c1bd"}}}
 	// Server (to all who can see room) << {"Set": {"user": {"Bob": {"room": {"name": "6fa13ad43fea"}, "file": {"duration": 596.458, "name": "6fa13ad43fea", "size": "44657bd3c1bd"}}}}}
+
+	file, ok := value.(map[string]interface{})
+	if !ok || file == nil {
+		fmt.Println("Error: file is nil or not a map")
+		return
+	}
 
 	room := connection.Owner
 	if room == nil {

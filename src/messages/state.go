@@ -250,3 +250,12 @@ func UpdateGlobalState(connection roomM.Connection, position, paused, doSeek, se
 func GetLocalState() (interface{}, interface{}, interface{}, interface{}) {
 	return globalState.position, globalState.paused, globalState.doSeek, globalState.setBy
 }
+
+func HandleUserMessage(value interface{}, conn net.Conn) {
+	user, ok := value.(map[string]interface{})
+	if !ok || user == nil {
+		fmt.Println("Error: user is nil or not a map")
+		return
+	}
+	HandleJoinMessage(conn, user)
+}

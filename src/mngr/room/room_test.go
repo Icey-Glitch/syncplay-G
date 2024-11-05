@@ -252,13 +252,15 @@ func TestGetConnectionByConn(t *testing.T) {
 	if err != nil {
 		return
 	}
-	retrievedConn := room.GetConnectionByConn(conn.Conn)
+	retrievedConn, err := room.GetConnectionByConn(conn.Conn)
+	assert.Nil(t, err)
 
 	assert.NotNil(t, retrievedConn)
 	assert.Equal(t, "testUser", retrievedConn.Username)
 
 	// Test for non-existing connection
 	nonExistentConn := &net.TCPConn{}
-	retrievedConn = room.GetConnectionByConn(nonExistentConn)
+	retrievedConn, err = room.GetConnectionByConn(nonExistentConn)
+	assert.NotNil(t, err)
 	assert.Nil(t, retrievedConn)
 }
