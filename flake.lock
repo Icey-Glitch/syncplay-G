@@ -68,27 +68,28 @@
         ]
       },
       "locked": {
-        "lastModified": 1730252995,
-        "narHash": "sha256-/kFpSLC8kxSdL3rO4n38M9Fql+zovnw60X4Gpq7HnWo=",
+        "lastModified": 1730080260,
+        "narHash": "sha256-wMX7hFCR9lBLshI6SU0AL6Iq4RJo5XErRMGHIZNSLI4=",
         "owner": "nix-community",
         "repo": "nix-vscode-extensions",
-        "rev": "238dc7efbe88c5ae226f849b73cd809f3ffbd001",
+        "rev": "32b832611420b11892ae164ace68cad8bae3a0ab",
         "type": "github"
       },
       "original": {
         "owner": "nix-community",
         "repo": "nix-vscode-extensions",
+        "rev": "32b832611420b11892ae164ace68cad8bae3a0ab",
         "type": "github"
       }
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1730137625,
-        "narHash": "sha256-9z8oOgFZiaguj+bbi3k4QhAD6JabWrnv7fscC/mt0KE=",
-        "rev": "64b80bfb316b57cdb8919a9110ef63393d74382a",
-        "revCount": 636213,
+        "lastModified": 1730741070,
+        "narHash": "sha256-edm8WG19kWozJ/GqyYx2VjW99EdhjKwbY3ZwdlPAAlo=",
+        "rev": "d063c1dd113c91ab27959ba540c0d9753409edf3",
+        "revCount": 636376,
         "type": "tarball",
-        "url": "https://api.flakehub.com/f/pinned/NixOS/nixpkgs/0.2405.636213%2Brev-64b80bfb316b57cdb8919a9110ef63393d74382a/0192d84c-b6fc-7e39-a326-c46cc00f5b6a/source.tar.gz?rev=64b80bfb316b57cdb8919a9110ef63393d74382a&revCount=636213"
+        "url": "https://api.flakehub.com/f/pinned/NixOS/nixpkgs/0.2405.636376%2Brev-d063c1dd113c91ab27959ba540c0d9753409edf3/0192facb-0ae2-71fe-ba33-5b04923dc511/source.tar.gz?rev=d063c1dd113c91ab27959ba540c0d9753409edf3&revCount=636376"
       },
       "original": {
         "type": "tarball",

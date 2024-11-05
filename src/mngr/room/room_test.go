@@ -26,7 +26,10 @@ func TestAddConnection(t *testing.T) {
 		Conn:     &net.TCPConn{},
 	}
 
-	room.AddConnection(conn)
+	err := room.AddConnection(conn)
+	if err != nil {
+		return
+	}
 
 	assert.Equal(t, 1, len(room.Users))
 	assert.Equal(t, "testUser", room.Users[0].Username)
@@ -39,7 +42,10 @@ func TestRemoveConnection(t *testing.T) {
 		Conn:     &net.TCPConn{},
 	}
 
-	room.AddConnection(conn)
+	err := room.AddConnection(conn)
+	if err != nil {
+		return
+	}
 	room.RemoveConnection(conn.Conn)
 
 	assert.Equal(t, 0, len(room.Users))
@@ -52,7 +58,10 @@ func TestGetConnectionByUsername(t *testing.T) {
 		Conn:     &net.TCPConn{},
 	}
 
-	room.AddConnection(conn)
+	err := room.AddConnection(conn)
+	if err != nil {
+		return
+	}
 	retrievedConn := room.GetConnectionByUsername("testUser")
 
 	assert.NotNil(t, retrievedConn)
@@ -66,7 +75,10 @@ func TestGetUsernameByConnection(t *testing.T) {
 		Conn:     &net.TCPConn{},
 	}
 
-	room.AddConnection(conn)
+	err := room.AddConnection(conn)
+	if err != nil {
+		return
+	}
 	username := room.GetUsernameByConnection(conn.Conn)
 
 	assert.Equal(t, "testUser", username)
@@ -79,7 +91,10 @@ func TestSetUserReadyState(t *testing.T) {
 		Conn:     &net.TCPConn{},
 	}
 
-	room.AddConnection(conn)
+	err := room.AddConnection(conn)
+	if err != nil {
+		return
+	}
 	room.SetUserReadyState("testUser", true, true)
 
 	state, exists := room.ReadyManager.GetUserReadyState("testUser")
@@ -102,8 +117,11 @@ func TestGetUsersLatencyCalculation_NilClientLatencyCalculation(t *testing.T) {
 		Conn:     &net.TCPConn{},
 	}
 
-	room.AddConnection(conn)
-	_, err := room.GetUsersLatencyCalculation(conn)
+	err := room.AddConnection(conn)
+	if err != nil {
+		return
+	}
+	_, err = room.GetUsersLatencyCalculation(conn)
 	assert.NotNil(t, err)
 	assert.Equal(t, "client latency calculation is nil", err.Error())
 }
@@ -120,7 +138,10 @@ func TestGetUsersLatencyCalculation(t *testing.T) {
 		},
 	}
 
-	room.AddConnection(conn)
+	err := room.AddConnection(conn)
+	if err != nil {
+		return
+	}
 	latencyCalculation, err := room.GetUsersLatencyCalculation(conn)
 	assert.Nil(t, err)
 	assert.Equal(t, 10.5, latencyCalculation.ArivalTime)
@@ -177,4 +198,67 @@ func TestSetUserLatencyCalculation(t *testing.T) {
 	assert.Equal(t, 0.0, conn.ClientLatencyCalculation.ArivalTime)
 	assert.Equal(t, 0.0, conn.ClientLatencyCalculation.ClientTime)
 	assert.Equal(t, 0.0, conn.ClientLatencyCalculation.ClientRtt)
+}
+func TestGetRoomByConnection(t *testing.T) {
+	rooms := make(map[string]*Room)
+
+	room1 := NewRoom("room1")
+	room2 := NewRoom("room2")
+
+	conn1 := &Connection{
+		Username: "user1",
+		Conn:     &net.TCPConn{},
+	}
+	conn2 := &Connection{
+		Username: "user2",
+		Conn:     &net.TCPConn{},
+	}
+
+	err := room1.AddConnection(conn1)
+	if err != nil {
+		return
+	}
+	err = room2.AddConnection(conn2)
+	if err != nil {
+		return
+	}
+
+	rooms["room1"] = room1
+	rooms["room2"] = room2
+
+	// Test for existing connection in room1
+	foundRoom := GetRoomByConnection(conn1.Conn, rooms)
+	assert.NotNil(t, foundRoom)
+	assert.Equal(t, "room1", foundRoom.Name)
+
+	// Test for existing connection in room2
+	foundRoom = GetRoomByConnection(conn2.Conn, rooms)
+	assert.NotNil(t, foundRoom)
+	assert.Equal(t, "room2", foundRoom.Name)
+
+	// Test for non-existing connection
+	nonExistentConn := &net.TCPConn{}
+	foundRoom = GetRoomByConnection(nonExistentConn, rooms)
+	assert.Nil(t, foundRoom)
+}
+func TestGetConnectionByConn(t *testing.T) {
+	room := NewRoom("testRoom")
+	conn := &Connection{
+		Username: "testUser",
+		Conn:     &net.TCPConn{},
+	}
+
+	err := room.AddConnection(conn)
+	if err != nil {
+		return
+	}
+	retrievedConn := room.GetConnectionByConn(conn.Conn)
+
+	assert.NotNil(t, retrievedConn)
+	assert.Equal(t, "testUser", retrievedConn.Username)
+
+	// Test for non-existing connection
+	nonExistentConn := &net.TCPConn{}
+	retrievedConn = room.GetConnectionByConn(nonExistentConn)
+	assert.Nil(t, retrievedConn)
 }

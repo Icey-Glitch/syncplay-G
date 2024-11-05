@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"sync"
 	"time"
 
 	Features "github.com/Icey-Glitch/Syncplay-G/features"
@@ -20,12 +19,6 @@ import (
 )
 
 var (
-	connPool = sync.Pool{
-		New: func() interface{} {
-			var conn net.Conn
-			return &conn
-		},
-	}
 	maxWorkers = 100 // limit concurrent goroutines
 	workerPool = make(chan struct{}, maxWorkers)
 )
@@ -206,8 +199,8 @@ func handleSetMessage(setMsg interface{}, conn net.Conn) {
 	// Deserialize the set message
 	cm := connM.GetConnectionManager()
 	room := cm.GetRoomByConnection(conn)
-
 	usr := room.GetConnectionByConn(conn)
+
 	setData, ok := setMsg.(map[string]interface{})
 	if !ok {
 		fmt.Println("Error: Set message is not a map")
@@ -215,46 +208,68 @@ func handleSetMessage(setMsg interface{}, conn net.Conn) {
 	}
 
 	fmt.Println("Set message:", setData)
-	// Handle user joining room
-	if user, ok := setData["user"].(map[string]interface{}); ok {
-		if user != nil {
-			messages.HandleJoinMessage(conn, user)
-		} else {
-			fmt.Println("Error: user is nil")
+
+	for key, value := range setData {
+		switch key {
+		case "user":
+			handleUserMessage(value, conn)
+		case "ready":
+			handleReadyMessage(value, usr)
+		case "playlistChange":
+			handlePlaylistChangeMessage(value, usr)
+		case "playlistIndex":
+			handlePlaylistIndexMessage(value, usr)
+		case "file":
+			handleFileMessage(value, usr)
+		default:
+			fmt.Printf("Unknown message type: %s\n", key)
 		}
 	}
+}
 
-	// Handle ready message
-	if ready, ok := setData["ready"].(map[string]interface{}); ok {
-		messages.HandleReadyMessage(ready, *usr)
+func handleUserMessage(value interface{}, conn net.Conn) {
+	user, ok := value.(map[string]interface{})
+	if !ok || user == nil {
+		fmt.Println("Error: user is nil or not a map")
+		return
 	}
+	messages.HandleJoinMessage(conn, user)
+}
 
-	// Handle playlist change message
-	if playlistChange, ok := setData["playlistChange"].(map[string]interface{}); ok {
-		if playlistChange != nil {
-			messages.HandlePlaylistChangeMessage(*usr, playlistChange)
-		} else {
-			fmt.Println("Error: playlistChange is nil")
-		}
+func handleReadyMessage(value interface{}, usr *roomM.Connection) {
+	ready, ok := value.(map[string]interface{})
+	if !ok {
+		fmt.Println("Error: ready is not a map")
+		return
 	}
+	messages.HandleReadyMessage(ready, *usr)
+}
 
-	// Handle playlist index message
-	if playlistIndex, ok := setData["playlistIndex"].(map[string]interface{}); ok {
-		if playlistIndex != nil {
-			messages.HandlePlaylistIndexMessage(*usr, playlistIndex)
-		} else {
-			fmt.Println("Error: playlistIndex is nil")
-		}
+func handlePlaylistChangeMessage(value interface{}, usr *roomM.Connection) {
+	playlistChange, ok := value.(map[string]interface{})
+	if !ok || playlistChange == nil {
+		fmt.Println("Error: playlistChange is nil or not a map")
+		return
 	}
+	messages.HandlePlaylistChangeMessage(*usr, playlistChange)
+}
 
-	// handle file message
-	if file, ok := setData["file"].(map[string]interface{}); ok {
-		if file != nil {
-			messages.HandleFileMessage(*usr, file)
-		} else {
-			fmt.Println("Error: file is nil")
-		}
+func handlePlaylistIndexMessage(value interface{}, usr *roomM.Connection) {
+	playlistIndex, ok := value.(map[string]interface{})
+	if !ok || playlistIndex == nil {
+		fmt.Println("Error: playlistIndex is nil or not a map")
+		return
 	}
+	messages.HandlePlaylistIndexMessage(*usr, playlistIndex)
+}
+
+func handleFileMessage(value interface{}, usr *roomM.Connection) {
+	file, ok := value.(map[string]interface{})
+	if !ok || file == nil {
+		fmt.Println("Error: file is nil or not a map")
+		return
+	}
+	messages.HandleFileMessage(*usr, file)
 }
 
 // func handle list message

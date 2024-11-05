@@ -24,7 +24,7 @@
       vscode-marketplace.golang.go
       vscode-marketplace-release.github.copilot
 
-      vscode-marketplace.github.copilot-chat
+      vscode-marketplace-release.github.copilot-chat
       open-vsx.catppuccin.catppuccin-vsc
       open-vsx.jnoortheen.nix-ide
     ];

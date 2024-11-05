@@ -2,5 +2,6 @@
     "github.copilot.chat.experimental.temporalContext.enabled": true,
     "github.copilot.enable": {
         "markdown": true
-    }
+    },
+    "github.copilot.chat.experimental.generateTests.codeLens": true
 }

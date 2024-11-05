@@ -5,7 +5,7 @@
   inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.gomod2nix.url = "github:nix-community/gomod2nix";
   inputs.nix-vscode-extensions = {
-    url = "github:nix-community/nix-vscode-extensions";
+    url = "github:nix-community/nix-vscode-extensions?rev=32b832611420b11892ae164ace68cad8bae3a0ab";
     inputs = {
       nixpkgs.follows = "nixpkgs";
       flake-utils.follows = "flake-utils";
