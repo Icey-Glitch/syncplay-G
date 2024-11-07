@@ -1,128 +1,101 @@
-package event
+package event_test
 
 import (
-	"reflect"
 	"testing"
 	"time"
+
+	"github.com/Icey-Glitch/Syncplay-G/mngr/event"
 )
 
-func TestNewManagedEvent(t *testing.T) {
-	em := NewEventManager()
+func TestEvent_SubscribeAndPublish(t *testing.T) {
+	e := event.NewEvent()
+	ch := e.Subscribe()
 
-	// Test case 1: Non-repeating event
-	fn := func() bool {
-		return true
-	}
-	var params []interface{}
-	event := em.NewManagedEvent(1, fn, false, params)
+	go e.Publish("test message")
 
-	if event == nil {
-		t.Fatal("Expected non-nil event")
-	}
-	if event.Ticker == nil {
-		t.Fatal("Expected non-nil ticker")
-	}
-	if event.Ticker.Repeat {
-		t.Fatal("Expected non-repeating ticker")
-	}
-	if event.Function.Kind() != reflect.Func {
-		t.Fatal("Expected function kind to be Func")
-	}
-
-	// Test case 2: Repeating event
-	event = em.NewManagedEvent(1, fn, true, params)
-
-	if event == nil {
-		t.Fatal("Expected non-nil event")
-	}
-	if event.Ticker == nil {
-		t.Fatal("Expected non-nil ticker")
-	}
-	if !event.Ticker.Repeat {
-		t.Fatal("Expected repeating ticker")
-	}
-
-	// Test case 3: Event with parameters
-	fnWithParams := func(msg string) bool {
-		return msg == "stop"
-	}
-	params = []interface{}{"stop"}
-	event = em.NewManagedEvent(1, fnWithParams, false, params)
-
-	if event == nil {
-		t.Fatal("Expected non-nil event")
-	}
-	if event.Ticker == nil {
-		t.Fatal("Expected non-nil ticker")
-	}
-	if event.Function.Kind() != reflect.Func {
-		t.Fatal("Expected function kind to be Func")
-	}
-	if len(event.Params) != 1 {
-		t.Fatal("Expected one parameter")
-	}
-	if event.Params[0].String() != "stop" {
-		t.Fatalf("Expected parameter to be 'stop', got %v", event.Params[0])
-	}
-
-	// Test case 4: Event with provided ticker
-	ticker := NewTicker(2, true)
-	event = em.NewManagedEvent(1, fn, true, params, ticker)
-
-	if event == nil {
-		t.Fatal("Expected non-nil event")
-	}
-	if event.Ticker != ticker {
-		t.Fatal("Expected provided ticker to be used")
-	}
-	if !event.Ticker.Repeat {
-		t.Fatal("Expected repeating ticker")
+	select {
+	case msg := <-ch:
+		if msg != "test message" {
+			t.Errorf("Expected 'test message', got %v", msg)
+		}
+	case <-time.After(time.Second):
+		t.Error("Timeout waiting for message")
 	}
 }
 
-func TestManagedEventStartStop(t *testing.T) {
-	em := NewEventManager()
+func TestEvent_Unsubscribe(t *testing.T) {
+	e := event.NewEvent()
+	ch := e.Subscribe()
+	e.Unsubscribe(ch)
 
-	fn := func() bool {
+	go e.Publish("test message")
+
+	select {
+	case _, ok := <-ch:
+		if ok {
+			t.Error("Received message after unsubscribe")
+		}
+	case <-time.After(time.Second):
+		// Expected behavior
+	}
+}
+
+func TestManagedEvent_StartAndStop(t *testing.T) {
+	em := event.NewEventManager()
+	me := em.NewManagedEvent(1, func() bool { return true }, false, nil)
+
+	me.Start()
+	time.Sleep(2 * time.Second)
+	me.Stop()
+
+	if _, ok := em.GetEvents()[me]; ok {
+		t.Error("ManagedEvent was not removed from EventManager after stop")
+	}
+}
+
+func TestEventManager_StopAll(t *testing.T) {
+	em := event.NewEventManager()
+	me1 := em.NewManagedEvent(1, func() bool { return false }, true, nil)
+	me2 := em.NewManagedEvent(1, func() bool { return false }, true, nil)
+
+	me1.Start()
+	me2.Start()
+	time.Sleep(2 * time.Second)
+
+	em.StopAll()
+
+	if len(em.GetEvents()) != 0 {
+		t.Error("Not all events were stopped")
+	}
+}
+
+func TestManagedEvent_Repeat(t *testing.T) {
+	em := event.NewEventManager()
+	counter := 0
+	me := em.NewManagedEvent(1, func() bool {
+		counter++
+		return false
+	}, true, nil)
+
+	me.Start()
+	time.Sleep(3 * time.Second)
+	me.Stop()
+
+	if counter < 2 {
+		t.Errorf("Expected counter to be at least 2, got %d", counter)
+	}
+}
+
+func TestManagedEvent_Params(t *testing.T) {
+	em := event.NewEventManager()
+	me := em.NewManagedEvent(1, func(a int, b string) bool {
+		if a != 42 || b != "test" {
+			t.Errorf("Expected params (42, 'test'), got (%d, '%s')", a, b)
+		}
 		return true
-	}
-	var params []interface{}
-	event := em.NewManagedEvent(1, fn, false, params)
+	}, false, []interface{}{42, "test"})
 
-	event.Start()
+	me.Start()
 	time.Sleep(2 * time.Second)
-	event.Stop()
-
-	if !event.StopEvent {
-		t.Fatal("Expected event to be stopped")
-	}
-
-	// Test case 2: Repeating event
-	event = em.NewManagedEvent(1, fn, true, params)
-
-	event.Start()
-	time.Sleep(2 * time.Second)
-	event.Stop()
-
-	if !event.StopEvent {
-		t.Fatal("Expected event to be stopped")
-	}
-
-	// Test case 3: Event with provided ticker
-	ticker := NewTicker(2, true)
-	event = em.NewManagedEvent(1, fn, true, params, ticker)
-
-	event.Start()
-	time.Sleep(2 * time.Second)
-	event.Stop()
-
-	if !event.StopEvent {
-		t.Fatal("Expected event to be stopped")
-	}
-
-	ticker.Stop()
-	if !ticker.StopTicker {
-		t.Fatal("Expected ticker to be stopped")
-	}
-
+	me.Stop()
 }

@@ -41,7 +41,7 @@ type Room struct {
 	Users           []*Connection
 	ReadyManager    *ready.ReadyManager
 	PlaylistManager *playlistsM.PlaylistManager
-	mutex           sync.RWMutex
+	Mutex           sync.RWMutex
 
 	stateEventManager *event.EventManager
 	stateEventTicker  *event.Ticker
@@ -71,8 +71,8 @@ func GetRoomByConnection(conn net.Conn, rooms map[string]*Room) *Room {
 
 // GetConnectionByConn get connection by conn
 func (r *Room) GetConnectionByConn(conn net.Conn) (user *Connection, err error) {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
+	r.Mutex.RLock()
+	defer r.Mutex.RUnlock()
 
 	for _, connection := range r.Users {
 		if connection.Conn == conn {
@@ -95,8 +95,8 @@ func (r *Room) GetConnectionByUsername(username string) *Connection {
 }
 
 func (r *Room) GetUsernameByConnection(conn net.Conn) string {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
+	r.Mutex.RLock()
+	defer r.Mutex.RUnlock()
 
 	for _, connection := range r.Users {
 		if connection.Conn == conn {
@@ -107,8 +107,8 @@ func (r *Room) GetUsernameByConnection(conn net.Conn) string {
 }
 
 func (r *Room) GetConnections() []*Connection {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
+	r.Mutex.RLock()
+	defer r.Mutex.RUnlock()
 
 	return r.Users
 }
@@ -119,8 +119,8 @@ func (r *Room) AddConnection(connection *Connection) error {
 		return fmt.Errorf("room is nil")
 	}
 
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
 
 	// check if connection already exists
 	for _, conn := range r.Users {
@@ -145,8 +145,8 @@ func (r *Room) AddConnection(connection *Connection) error {
 }
 
 func (r *Room) RemoveConnection(conn net.Conn) {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
 
 	for i, connection := range r.Users {
 		if connection.Conn == conn {
@@ -192,16 +192,16 @@ func ListRooms(rooms map[string]*Room) []string {
 
 // SetUserReadyState ready state
 func (r *Room) SetUserReadyState(username string, isReady bool, manuallyInitiated bool) {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
 
 	r.ReadyManager.SetUserReadyState(username, isReady, manuallyInitiated)
 }
 
 // PrintReadyStates print all ready states
 func (r *Room) PrintReadyStates() {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
+	r.Mutex.RLock()
+	defer r.Mutex.RUnlock()
 
 	for _, connection := range r.Users {
 		state, exists := r.ReadyManager.GetUserReadyState(connection.Username)
@@ -217,8 +217,8 @@ func (r *Room) GetUserPlaystate(username string) (interface{}, bool, error) {
 		return nil, false, fmt.Errorf("username cannot be empty")
 	}
 
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
+	r.Mutex.RLock()
+	defer r.Mutex.RUnlock()
 
 	playstate, ok := r.PlaylistManager.GetUserPlaystate(username)
 	if !ok {
@@ -234,8 +234,8 @@ func (r *Room) SetUserLatencyCalculation(connection *Connection, arivalTime floa
 		return fmt.Errorf("connection cannot be nil")
 	}
 
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
 
 	if connection.ClientLatencyCalculation == nil {
 		connection.ClientLatencyCalculation = &ClientLatencyCalculation{}
@@ -255,8 +255,8 @@ func (r *Room) GetUsersLatencyCalculation(connection *Connection) (ClientLatency
 		return ClientLatencyCalculation{}, fmt.Errorf("connection cannot be nil")
 	}
 
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
+	r.Mutex.RLock()
+	defer r.Mutex.RUnlock()
 
 	if connection.ClientLatencyCalculation == nil {
 		return ClientLatencyCalculation{}, fmt.Errorf("client latency calculation is nil")

@@ -48,6 +48,7 @@ in
 
       golangci-lint
       go
+      go-tools
       gotools
       go-task
       delve

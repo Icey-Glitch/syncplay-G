@@ -46,7 +46,6 @@ func TestAddConnection(t *testing.T) {
 	assert.Equal(t, roomName, roomConn.RoomName)
 }
 
-// add room tests
 func TestCreateRoom(t *testing.T) {
 	cm := NewConnectionManager()
 	roomName := "testRoom"
@@ -66,18 +65,15 @@ func TestGetRoom(t *testing.T) {
 	assert.NotNil(t, room)
 	assert.Equal(t, room, cm.GetRoom(roomName))
 
-	// add many rooms
 	roomName2 := "testRoom2"
 	room2 := cm.CreateRoom(roomName2)
 
 	assert.NotNil(t, room2)
 	assert.Equal(t, room2, cm.GetRoom(roomName2))
 
-	// get non-existent room
 	assert.Nil(t, cm.GetRoom("nonExistentRoom"))
 }
 
-// GetRoomByConnection
 func TestGetRoomByConnection(t *testing.T) {
 	cm := NewConnectionManager()
 	roomName := "testRoom"
@@ -90,7 +86,6 @@ func TestGetRoomByConnection(t *testing.T) {
 	assert.NotNil(t, roomConn)
 	assert.Equal(t, room, cm.GetRoomByConnection(conn))
 
-	// add many rooms
 	roomName2 := "testRoom2"
 	room2 := cm.CreateRoom(roomName2)
 
@@ -101,13 +96,69 @@ func TestGetRoomByConnection(t *testing.T) {
 	assert.NotNil(t, roomConn2)
 	assert.Equal(t, room2, cm.GetRoomByConnection(conn2))
 
-	// get non-existent room
 	nonExistentConn := &net.TCPConn{}
 	assert.Nil(t, cm.GetRoomByConnection(nonExistentConn))
 
-	// get room by connection in room2
 	assert.Equal(t, room2, cm.GetRoomByConnection(conn2))
-
-	// get room by connection in room1
 	assert.Equal(t, room, cm.GetRoomByConnection(conn))
+}
+
+func TestMoveConnection(t *testing.T) {
+	cm := NewConnectionManager()
+	roomName1 := "testRoom1"
+	roomName2 := "testRoom2"
+
+	cm.CreateRoom(roomName1)
+	cm.CreateRoom(roomName2)
+
+	conn := &net.TCPConn{}
+	_, err := cm.AddConnection("testUser", roomName1, "testState", conn)
+	assert.NoError(t, err)
+
+	movedConn, err := cm.MoveConnection("testUser", roomName2, roomName1, conn)
+	assert.NoError(t, err)
+
+	assert.NotNil(t, movedConn)
+	assert.Equal(t, roomName2, movedConn.RoomName)
+}
+
+func TestRemoveConnection(t *testing.T) {
+	cm := NewConnectionManager()
+	roomName := "testRoom"
+	room := cm.CreateRoom(roomName)
+
+	conn := &net.TCPConn{}
+	_, err := cm.AddConnection("testUser", roomName, "testState", conn)
+	assert.NoError(t, err)
+
+	cm.RemoveConnection(conn)
+	assert.Nil(t, room.GetConnectionByUsername("testUser"))
+}
+
+func TestGetRoomByUsername(t *testing.T) {
+	cm := NewConnectionManager()
+	roomName := "testRoom"
+	room := cm.CreateRoom(roomName)
+
+	conn := &net.TCPConn{}
+	_, err := cm.AddConnection("testUser", roomName, "testState", conn)
+	assert.NoError(t, err)
+
+	assert.Equal(t, room, cm.GetRoomByUsername("testUser"))
+	assert.Nil(t, cm.GetRoomByUsername("nonExistentUser"))
+}
+
+func TestSubscribeToConnections(t *testing.T) {
+	cm := NewConnectionManager()
+	ch := cm.SubscribeToConnections()
+
+	assert.NotNil(t, ch)
+}
+
+func TestUnsubscribeFromConnections(t *testing.T) {
+	cm := NewConnectionManager()
+	ch := cm.SubscribeToConnections()
+
+	assert.NotNil(t, ch)
+	cm.UnsubscribeFromConnections(ch)
 }

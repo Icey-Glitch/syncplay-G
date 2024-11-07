@@ -91,15 +91,31 @@ func (cm *ConnectionManager) MoveConnection(username string, newRoomName string,
 	}
 
 	oldRoom.RemoveConnection(conn)
-	connection.RoomName = newRoomName
-	connection.Owner = newRoom
 
-	connection, err := cm.AddConnection(username, newRoomName, connection.State, conn)
-	if err != nil {
-		return nil, fmt.Errorf("failed to add connection to new room: %s", err.Error())
+	// Avoid deadlock by not calling AddConnection directly
+	connectionobj := &roomM.Connection{
+		Username: username,
+		State:    connection.State,
+		Conn:     conn,
+		RoomName: newRoomName,
+
+		ClientLatencyCalculation: &roomM.ClientLatencyCalculation{
+			ArivalTime: float64(0),
+			ClientTime: float64(0),
+			ClientRtt:  float64(0),
+		},
+
+		Owner: cm.rooms[newRoomName],
 	}
 
-	return connection, nil
+	err := newRoom.AddConnection(connection)
+	if err != nil {
+		err1 := fmt.Errorf("failed to add connection to room: %s", err.Error())
+		return nil, err1
+	}
+
+	cm.connectionEvent.Publish(connectionobj)
+	return connectionobj, nil
 }
 
 func (cm *ConnectionManager) RemoveConnection(conn net.Conn) {

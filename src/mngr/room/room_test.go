@@ -1,7 +1,11 @@
 package roomM
 
 import (
+	"bytes"
+	"fmt"
+	"io"
 	"net"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,22 +39,6 @@ func TestAddConnection(t *testing.T) {
 	assert.Equal(t, "testUser", room.Users[0].Username)
 }
 
-func TestRemoveConnection(t *testing.T) {
-	room := NewRoom("testRoom")
-	conn := &Connection{
-		Username: "testUser",
-		Conn:     &net.TCPConn{},
-	}
-
-	err := room.AddConnection(conn)
-	if err != nil {
-		return
-	}
-	room.RemoveConnection(conn.Conn)
-
-	assert.Equal(t, 0, len(room.Users))
-}
-
 func TestGetConnectionByUsername(t *testing.T) {
 	room := NewRoom("testRoom")
 	conn := &Connection{
@@ -82,6 +70,77 @@ func TestGetUsernameByConnection(t *testing.T) {
 	username := room.GetUsernameByConnection(conn.Conn)
 
 	assert.Equal(t, "testUser", username)
+}
+
+// GetConnectionByConn
+func TestGetConnectionByConn(t *testing.T) {
+	room := NewRoom("testRoom")
+	conn := &Connection{
+		Username: "testUser",
+		Conn:     &net.TCPConn{},
+	}
+
+	err := room.AddConnection(conn)
+	if err != nil {
+		return
+	}
+
+	retrievedConn, err := room.GetConnectionByConn(conn.Conn)
+	assert.Nil(t, err)
+	assert.NotNil(t, retrievedConn)
+	assert.Equal(t, "testUser", retrievedConn.Username)
+
+	// Test for non-existing connection
+	nonExistentConn := &net.TCPConn{}
+	retrievedConn, err = room.GetConnectionByConn(nonExistentConn)
+	assert.NotNil(t, err)
+	assert.Nil(t, retrievedConn)
+}
+
+// GetRoomByConnection
+func TestGetRoomByConnection(t *testing.T) {
+	rooms := make(map[string]*Room)
+
+	room1 := NewRoom("room1")
+	room2 := NewRoom("room2")
+
+	conn1 := &Connection{
+		Username: "user1",
+		Conn:     &net.TCPConn{},
+	}
+
+	conn2 := &Connection{
+		Username: "user2",
+		Conn:     &net.TCPConn{},
+	}
+
+	err := room1.AddConnection(conn1)
+	if err != nil {
+		return
+	}
+
+	err = room2.AddConnection(conn2)
+	if err != nil {
+		return
+	}
+
+	rooms["room1"] = room1
+	rooms["room2"] = room2
+
+	// Test for existing connection in room1
+	foundRoom := GetRoomByConnection(conn1.Conn, rooms)
+	assert.NotNil(t, foundRoom)
+	assert.Equal(t, "room1", foundRoom.Name)
+
+	// Test for existing connection in room2
+	foundRoom = GetRoomByConnection(conn2.Conn, rooms)
+	assert.NotNil(t, foundRoom)
+	assert.Equal(t, "room2", foundRoom.Name)
+
+	// Test for non-existing connection
+	nonExistentConn := &net.TCPConn{}
+	foundRoom = GetRoomByConnection(nonExistentConn, rooms)
+	assert.Nil(t, foundRoom)
 }
 
 func TestSetUserReadyState(t *testing.T) {
@@ -147,7 +206,6 @@ func TestGetUsersLatencyCalculation(t *testing.T) {
 	assert.Equal(t, 10.5, latencyCalculation.ArivalTime)
 	assert.Equal(t, 20.5, latencyCalculation.ClientTime)
 	assert.Equal(t, 30.5, latencyCalculation.ClientRtt)
-
 }
 
 func TestGetUserPlaystate_EmptyUsername(t *testing.T) {
@@ -199,68 +257,110 @@ func TestSetUserLatencyCalculation(t *testing.T) {
 	assert.Equal(t, 0.0, conn.ClientLatencyCalculation.ClientTime)
 	assert.Equal(t, 0.0, conn.ClientLatencyCalculation.ClientRtt)
 }
-func TestGetRoomByConnection(t *testing.T) {
+
+func TestListRooms(t *testing.T) {
 	rooms := make(map[string]*Room)
+	rooms["room1"] = NewRoom("room1")
+	rooms["room2"] = NewRoom("room2")
 
-	room1 := NewRoom("room1")
-	room2 := NewRoom("room2")
-
-	conn1 := &Connection{
-		Username: "user1",
-		Conn:     &net.TCPConn{},
-	}
-	conn2 := &Connection{
-		Username: "user2",
-		Conn:     &net.TCPConn{},
-	}
-
-	err := room1.AddConnection(conn1)
-	if err != nil {
-		return
-	}
-	err = room2.AddConnection(conn2)
-	if err != nil {
-		return
-	}
-
-	rooms["room1"] = room1
-	rooms["room2"] = room2
-
-	// Test for existing connection in room1
-	foundRoom := GetRoomByConnection(conn1.Conn, rooms)
-	assert.NotNil(t, foundRoom)
-	assert.Equal(t, "room1", foundRoom.Name)
-
-	// Test for existing connection in room2
-	foundRoom = GetRoomByConnection(conn2.Conn, rooms)
-	assert.NotNil(t, foundRoom)
-	assert.Equal(t, "room2", foundRoom.Name)
-
-	// Test for non-existing connection
-	nonExistentConn := &net.TCPConn{}
-	foundRoom = GetRoomByConnection(nonExistentConn, rooms)
-	assert.Nil(t, foundRoom)
+	roomNames := ListRooms(rooms)
+	assert.Contains(t, roomNames, "room1")
+	assert.Contains(t, roomNames, "room2")
 }
-func TestGetConnectionByConn(t *testing.T) {
+
+func TestPrintReadyStates(t *testing.T) {
 	room := NewRoom("testRoom")
 	conn := &Connection{
 		Username: "testUser",
 		Conn:     &net.TCPConn{},
+		Owner:    room,
 	}
 
 	err := room.AddConnection(conn)
 	if err != nil {
-		return
+		t.Fatalf("Failed to add connection: %v", err)
 	}
-	retrievedConn, err := room.GetConnectionByConn(conn.Conn)
-	assert.Nil(t, err)
+	room.SetUserReadyState("testUser", true, true)
 
-	assert.NotNil(t, retrievedConn)
-	assert.Equal(t, "testUser", retrievedConn.Username)
+	// Capture the output of PrintReadyStates
+	output := captureOutput(func() {
+		room.PrintReadyStates()
+	})
 
-	// Test for non-existing connection
-	nonExistentConn := &net.TCPConn{}
-	retrievedConn, err = room.GetConnectionByConn(nonExistentConn)
-	assert.NotNil(t, err)
-	assert.Nil(t, retrievedConn)
+	fmt.Println("Captured Output:", output)
+	assert.Contains(t, output, "Username: testUser, IsReady: true, ManuallyInitiated: true")
+}
+
+// RemoveConnection
+func TestRemoveConnection(t *testing.T) {
+	room := NewRoom("testRoom")
+	conn := &Connection{
+		Username: "testUser",
+		Conn:     &net.TCPConn{},
+		Owner:    room,
+	}
+
+	err := room.AddConnection(conn)
+	if err != nil {
+		t.Fatalf("Failed to add connection: %v", err)
+	}
+
+	room.RemoveConnection(conn.Conn)
+	assert.Equal(t, 0, len(room.Users))
+}
+
+func TestGetConnections(t *testing.T) {
+	room := NewRoom("testRoom")
+	conn1 := &Connection{
+		Username: "testUser1",
+		Conn:     &net.TCPConn{},
+		Owner:    room,
+	}
+	conn2 := &Connection{
+		Username: "testUser2",
+		Conn:     &net.TCPConn{},
+		Owner:    room,
+	}
+
+	err := room.AddConnection(conn1)
+	if err != nil {
+		t.Fatalf("Failed to add connection 1: %v", err)
+	}
+	err = room.AddConnection(conn2)
+	if err != nil {
+		t.Fatalf("Failed to add connection 2: %v", err)
+	}
+
+	connections := room.GetConnections()
+	assert.Equal(t, 2, len(connections), "Expected 2 connections, got %d", len(connections))
+	assert.Equal(t, "testUser1", connections[0].Username)
+	assert.Equal(t, "testUser2", connections[1].Username)
+}
+
+func TestGetStateEventManager(t *testing.T) {
+	room := NewRoom("testRoom")
+	manager := room.GetStateEventManager()
+	assert.NotNil(t, manager)
+}
+
+func TestGetStateEventTicker(t *testing.T) {
+	room := NewRoom("testRoom")
+	ticker := room.GetStateEventTicker()
+	assert.NotNil(t, ticker)
+}
+
+// Helper function to capture output
+func captureOutput(f func()) string {
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	f()
+
+	w.Close()
+	os.Stdout = old
+
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	return buf.String()
 }

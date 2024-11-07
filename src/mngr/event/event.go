@@ -121,9 +121,14 @@ func (e *ManagedEvent) Start() {
 }
 
 func (e *ManagedEvent) Stop() {
-	close(e.stopChan)
-	if e.owner != nil {
-		e.owner.RemoveEvent(e)
+	select {
+	case <-e.stopChan:
+		// Channel already closed
+	default:
+		close(e.stopChan)
+		if e.owner != nil {
+			e.owner.RemoveEvent(e)
+		}
 	}
 }
 
@@ -165,12 +170,28 @@ func (em *EventManager) RemoveEvent(event *ManagedEvent) {
 	delete(em.events, event)
 }
 
-// StopAll stops all events in the EventManager
+// Add logging to StopAll to help debug the issue
 func (em *EventManager) StopAll() {
 	em.mutex.Lock()
 	defer em.mutex.Unlock()
 
 	for event := range em.events {
-		event.Stop()
+		fmt.Println("Stopping event:", event)
+		select {
+		case <-event.stopChan:
+			// Channel already closed
+		default:
+			close(event.stopChan)
+			if event.owner != nil {
+				delete(em.events, event)
+			}
+		}
 	}
+}
+
+// Add this method to the EventManager struct
+func (em *EventManager) GetEvents() map[*ManagedEvent]bool {
+	em.mutex.RLock()
+	defer em.mutex.RUnlock()
+	return em.events
 }
