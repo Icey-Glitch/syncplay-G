@@ -21,19 +21,78 @@ func HandleJoinMessage(conn net.Conn, msg map[string]interface{}) {
 
 	room := cm.GetRoom(roomName)
 	if room == nil {
-		_ = cm.CreateRoom(roomName)
+		room = cm.CreateRoom(roomName)
 	}
 
-	connection, err := cm.AddConnection(username, roomName, nil, conn)
-	if err != nil {
-		fmt.Println("Error adding connection to room:", err)
+	// check if the connection exist / what room they are in and move them into the new room if they are in a different room
+	// if they are in the same room do nothing
+
+	if room.GetConnectionByUsername(username) != nil {
+		// check if the user is in the same room
+		user := room.GetConnectionByUsername(username)
+		if user.Owner.Name == roomName {
+			// do nothing
+			return
+		} else {
+			// remove the user from the room
+			HandleUserLeftMessage(*user)
+			// send a leave message
+			connection, err := cm.MoveConnection(username, roomName, user.Owner.Name, conn)
+			if err != nil {
+				fmt.Println("Error moving connection to room:", err)
+				return
+			}
+
+			fmt.Println("Moved user to new room")
+
+			// send a join message
+			err = BroadcastJoinAnnouncement(*connection)
+			if err != nil {
+				fmt.Printf("Failed to send Join Anouncement" + err.Error())
+				return
+			}
+			return
+		}
+	} else {
+		connection, err := cm.AddConnection(username, roomName, nil, conn)
+		if err != nil {
+			fmt.Println("Error adding connection to room:", err)
+			return
+		}
+		BroadcastUserRoomChangeMessage(*connection, roomName)
 		return
 	}
 
-	err = BroadcastJoinAnnouncement(*connection)
-	if err != nil {
-		fmt.Printf("Failed to send Join Anouncement" + err.Error())
-		return
+}
+
+// User Move room message
+func HandleUserMoveRoomMessage(connection roomM.Connection, RoomData interface{}) {
+	// {"Set": {"room": {"name": "room"}}}
+	roomDataMap := RoomData.(map[string]interface{})
+	roomName := roomDataMap["name"].(string)
+
+	// Move the user to the new room
+	cm := connM.GetConnectionManager()
+	oldRoom := connection.Owner
+	newRoom := cm.GetRoom(roomName)
+	if newRoom == nil {
+		newRoom = cm.CreateRoom(roomName)
+	}
+
+	if oldRoom.Name != newRoom.Name {
+
+		HandleUserLeftMessage(connection)
+		_, err := cm.MoveConnection(connection.Username, newRoom.Name, oldRoom.Name, connection.Conn)
+		if err != nil {
+			fmt.Println("Error moving connection to new room:", err)
+			return
+		}
+
+		err = BroadcastJoinAnnouncement(connection)
+		if err != nil {
+			fmt.Printf("Failed to send Join Announcement: " + err.Error())
+			return
+		}
 	}
 }
 
@@ -53,6 +112,22 @@ func HandleUserLeftMessage(connection roomM.Connection) {
 		fmt.Printf("Failed to send Leave Anouncement" + err.Error())
 		return
 	}
+}
+
+// Broadcast User Room change message
+func BroadcastUserRoomChangeMessage(connection roomM.Connection, roomName string) {
+	announcement := map[string]interface{}{
+		"Set": map[string]interface{}{
+			"user": map[string]interface{}{
+				connection.Username: map[string]interface{}{
+					"room": map[string]interface{}{
+						"name": roomName,
+					},
+				},
+			},
+		},
+	}
+	utils.SendJSONMessageMultiCast(announcement, connection.Owner.Name)
 }
 
 func broadcastLeaveAnnouncement(connection roomM.Connection) error {

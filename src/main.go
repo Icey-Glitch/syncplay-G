@@ -83,7 +83,7 @@ func handleClient(conn net.Conn) {
 
 			usr, err := room.GetConnectionByConn(conn)
 			if err != nil {
-				fmt.Println("Error getting connection by conn:", err)
+				//fmt.Println("Error getting connection by conn:", err)
 				return
 			}
 			messages.HandleUserLeftMessage(*usr)
@@ -212,7 +212,7 @@ func handleSetMessage(setMsg interface{}, conn net.Conn) {
 	room := cm.GetRoomByConnection(conn)
 	usr, err := room.GetConnectionByConn(conn)
 	if err != nil {
-		fmt.Println("Error getting connection by conn:", err)
+		//fmt.Println("Error getting connection by conn:", err)
 		return
 	}
 
@@ -236,6 +236,8 @@ func handleSetMessage(setMsg interface{}, conn net.Conn) {
 			messages.HandlePlaylistIndexMessage(*usr, value)
 		case "file":
 			messages.HandleFileMessage(*usr, value)
+		case "room":
+			messages.HandleUserMoveRoomMessage(*usr, value)
 		default:
 			fmt.Printf("Unknown message type: %s\n", key)
 		}
@@ -248,7 +250,7 @@ func handleListMessage(conn net.Conn) {
 	room := cm.GetRoomByConnection(conn)
 	usr, err := room.GetConnectionByConn(conn)
 	if err != nil {
-		fmt.Println("Error getting connection by conn:", err)
+		//fmt.Println("Error getting connection by conn:", err)
 		return
 	}
 
@@ -261,7 +263,7 @@ func handleStateMessage(stateMsg interface{}, conn net.Conn) {
 	room := cm.GetRoomByConnection(conn)
 	user, err := room.GetConnectionByConn(conn)
 	if err != nil {
-		fmt.Println("Error getting connection by conn:", err)
+		//fmt.Println("Error getting connection by conn:", err)
 		return
 	}
 	var position, paused, doSeek, setBy interface{}

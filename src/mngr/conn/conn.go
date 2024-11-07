@@ -70,6 +70,38 @@ func (cm *ConnectionManager) AddConnection(username, roomName string, state inte
 	return connection, nil
 }
 
+func (cm *ConnectionManager) MoveConnection(username string, newRoomName string, oldRoomName string, conn net.Conn) (*roomM.Connection, error) {
+	cm.mutex.Lock()
+	defer cm.mutex.Unlock()
+
+	oldRoom := cm.rooms[oldRoomName]
+	newRoom := cm.rooms[newRoomName]
+
+	if oldRoom == nil {
+		return nil, fmt.Errorf("old room does not exist")
+	}
+
+	if newRoom == nil {
+		return nil, fmt.Errorf("new room does not exist")
+	}
+
+	connection := oldRoom.GetConnectionByUsername(username)
+	if connection == nil {
+		return nil, fmt.Errorf("user does not exist in the old room")
+	}
+
+	oldRoom.RemoveConnection(conn)
+	connection.RoomName = newRoomName
+	connection.Owner = newRoom
+
+	connection, err := cm.AddConnection(username, newRoomName, connection.State, conn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add connection to new room: %s", err.Error())
+	}
+
+	return connection, nil
+}
+
 func (cm *ConnectionManager) RemoveConnection(conn net.Conn) {
 	cm.mutex.Lock()
 	defer cm.mutex.Unlock()
@@ -105,8 +137,10 @@ func (cm *ConnectionManager) GetRoomByConnection(conn net.Conn) *roomM.Room {
 	defer cm.mutex.RUnlock()
 
 	for _, room := range cm.rooms {
-		if roomM.GetRoomByConnection(conn, cm.rooms) != nil {
-			return room
+		for _, connection := range room.Users {
+			if connection.Conn == conn {
+				return room
+			}
 		}
 	}
 	return nil
