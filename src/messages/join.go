@@ -65,6 +65,14 @@ func HandleJoinMessage(conn net.Conn, msg map[string]interface{}) {
 
 }
 
+type RoomMessage struct {
+	Set struct {
+		Room struct {
+			Name string `json:"name"`
+		} `json:"room"`
+	} `json:"Set"`
+}
+
 // User Move room message
 func HandleUserMoveRoomMessage(connection roomM.Connection, RoomData interface{}) {
 	// {"Set": {"room": {"name": "room"}}}

@@ -53,27 +53,20 @@ func SendReadyMessageInit(connection roomM.Connection) {
 	utils.SendJSONMessageMultiCast(readyMessage, room.Name)
 }
 
-func HandleReadyMessage(value interface{}, usr *roomM.Connection) {
-	ready, ok := value.(map[string]interface{})
-	if !ok {
-		fmt.Println("Error: ready is not a map")
-		return
-	}
+func HandleReadyMessage(msg *ClientReadyMessage, usr *roomM.Connection) {
+
 	if usr == nil {
 		fmt.Println("Error: Connection not found for ready message")
 		return
 	}
-	readyMessage(ready, *usr)
+	readyMessage(*msg, *usr)
 }
 
-func readyMessage(ready map[string]interface{}, connection roomM.Connection) {
-
-	// Unmarshal the incoming JSON data into ClientReadyMessage struct
-	var clientReadyMessage ClientReadyMessage
+func readyMessage(msg ClientReadyMessage, connection roomM.Connection) {
 
 	// extract the data from the map
-	isReady := ready["isReady"].(bool)
-	manuallyInitiated := clientReadyMessage.ManuallyInitiated
+	isReady := msg.IsReady
+	manuallyInitiated := msg.ManuallyInitiated
 
 	// Get the room and user associated with the connection
 	room := connection.Owner

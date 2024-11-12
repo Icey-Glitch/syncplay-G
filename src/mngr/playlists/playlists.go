@@ -43,9 +43,10 @@ type Playlist struct {
 }
 
 type File struct {
-	Size     float64
-	Name     string
-	Duration float64
+	Size       float64
+	SizeHashed string
+	Name       string
+	Duration   float64
 }
 
 type PlaylistManager struct {
@@ -175,7 +176,7 @@ func (pm *PlaylistManager) RemoveUserPlaystate(username string) error {
 }
 
 // AddFile adds a file to the playlist
-func (pm *PlaylistManager) AddFile(duration float64, name string, size float64, User string) (File, error) {
+func (pm *PlaylistManager) AddFile(duration float64, name string, size float64, User string, Hash string) (File, error) {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
@@ -189,9 +190,10 @@ func (pm *PlaylistManager) AddFile(duration float64, name string, size float64, 
 	// check if shared playlist is enabled
 	if Features.GlobalFeatures.SharedPlaylists {
 		pm.Playlist.Files = append(pm.Playlist.Files, File{
-			Size:     size,
-			Name:     name,
-			Duration: duration,
+			Size:       size,
+			SizeHashed: Hash,
+			Name:       name,
+			Duration:   duration,
 		})
 
 	} else {
@@ -202,9 +204,10 @@ func (pm *PlaylistManager) AddFile(duration float64, name string, size float64, 
 		}
 
 		user.UsrPlaylist = append(user.UsrPlaylist, File{
-			Size:     size,
-			Name:     name,
-			Duration: duration,
+			Size:       size,
+			SizeHashed: Hash,
+			Name:       name,
+			Duration:   duration,
 		})
 		pm.Playlist.Users[User] = user
 

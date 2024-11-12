@@ -178,40 +178,40 @@ func TestAddFile(t *testing.T) {
 	pm := NewPlaylistManager()
 
 	// test case 1: empty file
-	_, err := pm.AddFile(0, "", 0, "")
+	_, err := pm.AddFile(0, "", 0, "", "")
 	assert.Error(t, err)
 
 	// test case 2: valid file, but user does not exist
-	_, err = pm.AddFile(0, "testFile", 0, "testUser")
+	_, err = pm.AddFile(0, "testFile", 0, "testUser", "")
 	assert.Error(t, err)
 
 	// test case 3: valid file, user exists
 	err = pm.CreateUserPlaystate("testUser")
 	assert.NoError(t, err)
 
-	_, err = pm.AddFile(0, "testFile", 0, "testUser")
+	_, err = pm.AddFile(0, "testFile", 0, "testUser", "")
 	assert.NoError(t, err)
 
 	// test case 4: valid file, user exists, file already exists
-	_, err = pm.AddFile(0, "testFile", 0, "testUser")
+	_, err = pm.AddFile(0, "testFile", 0, "testUser", "")
 	assert.NoError(t, err)
 
 	// test case 5: valid file, user exists, file does not exist
-	_, err = pm.AddFile(0, "testFile2", 0, "testUser")
+	_, err = pm.AddFile(0, "testFile2", 0, "testUser", "")
 	assert.NoError(t, err)
 
 	// test case 6: valid file, user exists, file exists in playlist
-	_, err = pm.AddFile(0, "testFile2", 0, "testUser")
+	_, err = pm.AddFile(0, "testFile2", 0, "testUser", "")
 	assert.NoError(t, err)
 
 	// test case 7: valid file, user exists, file does not exist in playlist. Shared playlist is enabled
 	// set shared playlist to true
 	Features.GlobalFeatures.SharedPlaylists = true
-	_, err = pm.AddFile(0, "testFile3", 0, "")
+	_, err = pm.AddFile(0, "testFile3", 0, "", "")
 	assert.NoError(t, err)
 
 	// test case 8: valid file, user exists, file exists in playlist. Shared playlist is enabled
-	_, err = pm.AddFile(0, "testFile3", 0, "")
+	_, err = pm.AddFile(0, "testFile3", 0, "", "")
 	assert.NoError(t, err)
 
 }

@@ -17,6 +17,10 @@ type ChatMessage struct {
 	} `json:"Chat"`
 }
 
+type ClientChatMessage struct {
+	Chat string `json:"chat"`
+}
+
 func SendChatMessage(message, username string) {
 	room := connM.GetConnectionManager().GetRoomByUsername(username)
 	chatMessage := ChatMessage{}

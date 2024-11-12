@@ -9,7 +9,26 @@ import (
 	"github.com/Icey-Glitch/Syncplay-G/utils"
 )
 
-type StateMessage struct {
+type ClientStateMessage struct {
+	State struct {
+		// optional elements
+		IgnoringOnTheFly *IgnoringOnTheFly `json:"ignoringOnTheFly,omitempty"`
+
+		Playstate struct {
+			Position float64     `json:"position"`
+			Paused   bool        `json:"paused"`
+			DoSeek   bool        `json:"doSeek"`
+			SetBy    interface{} `json:"setBy"`
+		} `json:"playstate"`
+		Ping struct {
+			LatencyCalculation       float64 `json:"latencyCalculation"`
+			ClientLatencyCalculation float64 `json:"clientLatencyCalculation"`
+			ClientRtt                float64 `json:"clientRtt"`
+		} `json:"ping"`
+	} `json:"State"`
+}
+
+type ServerStateMessage struct {
 	State struct {
 		// optional elements
 		IgnoringOnTheFly *IgnoringOnTheFly `json:"ignoringOnTheFly,omitempty"`
@@ -24,8 +43,6 @@ type StateMessage struct {
 			LatencyCalculation       float64 `json:"latencyCalculation"`
 			ClientLatencyCalculation float64 `json:"clientLatencyCalculation"`
 			ServerRtt                float64 `json:"serverRtt"`
-			YourLatency              float64 `json:"yourLatency"`
-			SenderLatency            float64 `json:"senderLatency"`
 		} `json:"ping"`
 	} `json:"State"`
 }
@@ -38,8 +55,8 @@ type UserState struct {
 }
 
 type IgnoringOnTheFly struct {
-	Client float64 `json:"client"`
-	Server float64 `json:"server"`
+	Client float64 `json:"client,omitempty"`
+	Server float64 `json:"server,omitempty"`
 }
 
 func SendInitialState(connection roomM.Connection) {
@@ -48,7 +65,7 @@ func SendInitialState(connection roomM.Connection) {
 	}
 
 	if len(connection.Owner.Users) <= 1 {
-		stateMessage := StateMessage{}
+		stateMessage := ServerStateMessage{}
 		stateMessage.State.Ping.LatencyCalculation = float64(time.Now().UnixNano()) / 1e9
 		stateMessage.State.Ping.ServerRtt = 0
 		stateMessage.State.Playstate.DoSeek = false
@@ -65,7 +82,7 @@ func SendInitialState(connection roomM.Connection) {
 	}
 
 	roomState := connection.Owner.PlaylistManager.Playlist
-	stateMessage := StateMessage{}
+	stateMessage := ServerStateMessage{}
 	stateMessage.State.Ping.LatencyCalculation = float64(time.Now().UnixNano()) / 1e9
 	stateMessage.State.Ping.ServerRtt = 0
 
@@ -131,12 +148,12 @@ func sendStateMessage(room *roomM.Room, conn net.Conn, position float64, paused 
 		return fmt.Errorf("connection cannot be nil")
 	}
 
-	stateMessage := StateMessage{}
+	stateMessage := ServerStateMessage{}
 	stateMessage.State.Ping.LatencyCalculation = float64(time.Now().UnixNano()) / 1e9
-	if clientTime != 0 {
-		stateMessage.State.Ping.SenderLatency = clientTime + processingTime
-	}
-	stateMessage.State.Ping.YourLatency = LastMsgAge
+	// if clientTime != 0 {
+	// 	stateMessage.State.Ping.SenderLatency = clientTime + processingTime
+	// }
+	// stateMessage.State.Ping.YourLatency = LastMsgAge
 
 	stateMessage.State.Playstate.Position = position
 	stateMessage.State.Playstate.Paused = paused
@@ -245,6 +262,15 @@ func UpdateGlobalState(connection roomM.Connection, position, paused, doSeek, se
 
 func GetLocalState() (interface{}, interface{}, interface{}, interface{}) {
 	return globalState.position, globalState.paused, globalState.doSeek, globalState.setBy
+}
+
+type UserMessage struct {
+	Set struct {
+		User struct {
+			Username string `json:"username"`
+			IsOwner  bool   `json:"isOwner"`
+		} `json:"user"`
+	} `json:"Set"`
 }
 
 func HandleUserMessage(value interface{}, conn net.Conn) {

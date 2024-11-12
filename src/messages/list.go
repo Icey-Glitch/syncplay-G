@@ -10,6 +10,12 @@ import (
 	roomM "github.com/Icey-Glitch/Syncplay-G/mngr/room"
 )
 
+// client {"List": null}
+// ListRequest represents the list request message.
+type ListRequest struct {
+	List interface{} `json:"List"`
+}
+
 // FileInfo represents the file information.
 type FileInfo struct {
 	Duration float64 `json:"duration"`
@@ -63,7 +69,7 @@ type ListResponse struct {
 
 // handleListRequest handles the "List" request and returns the response.
 func HandleListRequest(connection roomM.Connection) {
-	//fmt.Println("List request received")
+	fmt.Println("List request received")
 
 	// Initialize the list map
 	list := make(map[string]RoomInfo)

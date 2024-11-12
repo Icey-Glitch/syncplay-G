@@ -51,20 +51,38 @@ func main() {
 	}
 }
 
+type HelloMessage struct {
+	Username string   `json:"username"`
+	Room     RoomInfo `json:"room"`
+}
+
+type RoomInfo struct {
+	Name string `json:"name"`
+}
+
+type TLSMessage struct {
+	StartTLS string `json:"startTLS"`
+}
+
+type Message struct {
+	TLS   *TLSMessage                  `json:"TLS,omitempty"`
+	Hello *HelloMessage                `json:"Hello,omitempty"`
+	State *messages.ClientStateMessage `json:"State,omitempty"`
+	Chat  string                       `json:"Chat,omitempty"`
+	Set   *messages.SetMessage         `json:"Set,omitempty"`
+	List  *messages.ListRequest        `json:"List,omitempty"`
+}
+
 func handleClient(conn net.Conn) {
-	workerPool <- struct{}{} // limit goroutines
+	workerPool <- struct{}{}
 	defer func(conn net.Conn) {
-		err := conn.Close()
-		if err != nil {
-			fmt.Println("Error closing connection:", err)
-		}
-		<-workerPool // release worker
+		_ = conn.Close()
+		<-workerPool
 	}(conn)
 
-	// Set a timeout to avoid stale connections
 	err := conn.SetDeadline(time.Now().Add(time.Minute * 5))
 	if err != nil {
-		fmt.Println("Failed to set deadline" + err.Error())
+		fmt.Println("Failed to set deadline:", err)
 		return
 	}
 
@@ -72,7 +90,7 @@ func handleClient(conn net.Conn) {
 	decoder := json.NewDecoder(reader)
 
 	for {
-		var msg map[string]interface{}
+		var msg Message
 		if err = decoder.Decode(&msg); err == io.EOF {
 			cm := connM.GetConnectionManager()
 			fmt.Println("Client disconnected")
@@ -83,7 +101,6 @@ func handleClient(conn net.Conn) {
 
 			usr, err := room.GetConnectionByConn(conn)
 			if err != nil {
-				//fmt.Println("Error getting connection by conn:", err)
 				return
 			}
 			messages.HandleUserLeftMessage(*usr)
@@ -91,30 +108,24 @@ func handleClient(conn net.Conn) {
 			return
 		} else if err != nil {
 			fmt.Println("Error decoding message:", err)
-			continue
-		}
-
-		if msg == nil {
-			fmt.Println("Empty message")
-			continue
+			break
 		}
 
 		switch {
-		case msg["TLS"] != nil:
+		case msg.TLS != nil:
 			handleStartTLSMessage(conn)
-		case msg["Hello"] != nil:
-			handleHelloMessage(msg["Hello"], conn)
-		case msg["State"] != nil:
-			handleStateMessage(msg["State"], conn)
-		case msg["Chat"] != nil:
-			handleChatMessage(msg["Chat"], conn)
-		case msg["Set"] != nil:
-			handleSetMessage(msg["Set"], conn)
-		case msg["List"] == nil:
+		case msg.Hello != nil:
+			handleHelloMessage(msg.Hello, conn)
+		case msg.State != nil:
+			handleStateMessage(msg.State, conn)
+		case msg.Chat != "":
+			handleChatMessage(msg.Chat, conn)
+		case msg.Set != nil:
+			handleSetMessage(msg.Set, conn)
+		case msg.List == nil:
 			handleListMessage(conn)
 		default:
-			fmt.Println("Unknown message type")
-			fmt.Println("Message:", msg)
+			fmt.Println("Unknown message type " + fmt.Sprintf("%+v", msg))
 		}
 	}
 }
@@ -144,30 +155,9 @@ func handleStartTLSMessage(conn net.Conn) {
 
 }
 
-func handleHelloMessage(helloMsg interface{}, conn net.Conn) {
-	helloData, ok := helloMsg.(map[string]interface{})
-	if !ok {
-		fmt.Println("Error: room is not a map, got:", helloData["room"])
-		return
-	}
-
-	username, ok := helloData["username"].(string)
-	if !ok {
-		fmt.Println("Error: username is not a string")
-		return
-	}
-
-	room, ok := helloData["room"].(map[string]interface{})
-	if !ok {
-		fmt.Println("Error: room is not a map")
-		return
-	}
-
-	roomName, ok := room["name"].(string)
-	if !ok {
-		fmt.Println("Error: room name is not a string")
-		return
-	}
+func handleHelloMessage(helloMsg *HelloMessage, conn net.Conn) {
+	username := helloMsg.Username
+	roomName := helloMsg.Room.Name
 
 	cm := connM.GetConnectionManager()
 	if cm.GetRoom(roomName) == nil {
@@ -181,66 +171,55 @@ func handleHelloMessage(helloMsg interface{}, conn net.Conn) {
 	connection, coner := cm.AddConnection(username, roomName, nil, conn)
 	if coner != nil {
 		fmt.Println("Error adding connection to room:", coner)
-		messages.SendMessageToUser(username+" Is already in the room", "server", conn)
+		messages.SendMessageToUser(username+" is already in the room", "server", conn)
 		return
 	}
 
-	err1 := messages.BroadcastJoinAnnouncement(*connection)
-	if err1 != nil {
-		fmt.Println("Failed to send Join Anouncement" + err1.Error())
+	err := messages.BroadcastJoinAnnouncement(*connection)
+	if err != nil {
+		fmt.Println("Failed to send join announcement:", err)
 		return
 	}
 
 	sendSessionInformation(*connection)
 
 	response := messages.CreateHelloResponse(username, "1.7.3", roomName)
-	err := utils.SendJSONMessage(conn, response)
+	err = utils.SendJSONMessage(conn, response)
 	if err != nil {
-		fmt.Println("failed to send hello to " + username + " " + err.Error())
+		fmt.Println("Failed to send hello to", username, ":", err)
 		return
 	}
 
 	messages.SendInitialState(*connection)
 
 	setupStatusScheduler(*connection)
-
 }
 
-func handleSetMessage(setMsg interface{}, conn net.Conn) {
-	// Deserialize the set message
+func handleSetMessage(setMsg *messages.SetMessage, conn net.Conn) {
 	cm := connM.GetConnectionManager()
 	room := cm.GetRoomByConnection(conn)
 	usr, err := room.GetConnectionByConn(conn)
 	if err != nil {
-		//fmt.Println("Error getting connection by conn:", err)
 		return
 	}
 
-	setData, ok := setMsg.(map[string]interface{})
-	if !ok {
-		fmt.Println("Error: Set message is not a map")
-		return
+	if setMsg.User != nil {
+		messages.HandleUserMessage(setMsg.User, conn)
 	}
-
-	fmt.Println("Set message:", setData)
-
-	for key, value := range setData {
-		switch key {
-		case "user":
-			messages.HandleUserMessage(value, conn)
-		case "ready":
-			messages.HandleReadyMessage(value, usr)
-		case "playlistChange":
-			messages.HandlePlaylistChangeMessage(value, *usr)
-		case "playlistIndex":
-			messages.HandlePlaylistIndexMessage(*usr, value)
-		case "file":
-			messages.HandleFileMessage(*usr, value)
-		case "room":
-			messages.HandleUserMoveRoomMessage(*usr, value)
-		default:
-			fmt.Printf("Unknown message type: %s\n", key)
-		}
+	if setMsg.Ready != nil {
+		messages.HandleReadyMessage(setMsg.Ready, usr)
+	}
+	if setMsg.PlaylistChange != nil {
+		messages.HandlePlaylistChangeMessage(setMsg.PlaylistChange, *usr)
+	}
+	if setMsg.PlaylistIndex != nil {
+		messages.HandlePlaylistIndexMessage(*usr, setMsg.PlaylistIndex)
+	}
+	if setMsg.File != nil {
+		messages.HandleFileMessage(*usr, setMsg.File)
+	}
+	if setMsg.Room != nil {
+		messages.HandleUserMoveRoomMessage(*usr, setMsg.Room)
 	}
 }
 
@@ -258,75 +237,52 @@ func handleListMessage(conn net.Conn) {
 
 }
 
-func handleStateMessage(stateMsg interface{}, conn net.Conn) {
+func handleStateMessage(stateMsg *messages.ClientStateMessage, conn net.Conn) {
 	cm := connM.GetConnectionManager()
 	room := cm.GetRoomByConnection(conn)
 	user, err := room.GetConnectionByConn(conn)
 	if err != nil {
-		//fmt.Println("Error getting connection by conn:", err)
-		return
-	}
-	var position, paused, doSeek, setBy interface{}
-	var messageAge, latencyCalculation, clientlatency, rtt float64
-	var clientIgnoringOnTheFly float64
-
-	stateData, ok := stateMsg.(map[string]interface{})
-	if !ok {
-		fmt.Println("Error: State message is not a map")
 		return
 	}
 
-	//Client >> {"State": {"ignoringOnTheFly": {"client": 1}, "ping": {"clientRtt": 0, "clientLatencyCalculation": 1394587857.902}, "playstate": {"paused": false, "position": 0.089}}}
-	if ignoringOnTheFly, ok := stateData["ignoringOnTheFly"].(map[string]interface{}); ok {
-		clientIgnoringOnTheFly, ok = ignoringOnTheFly["client"].(float64)
-		if !ok {
-			clientIgnoringOnTheFly = 0
-		}
+	// print the state message
+	fmt.Println("State message:", stateMsg)
 
-		fmt.Println("Ignoring on the fly:", clientIgnoringOnTheFly)
+	position := stateMsg.State.Playstate.Position
+	paused := stateMsg.State.Playstate.Paused
+	doSeek := stateMsg.State.Playstate.DoSeek
+	setBy := stateMsg.State.Playstate.SetBy
+	if setBy == "" || setBy == nil {
+		setBy = "Nobody"
 	}
 
-	if playstate, ok := stateData["playstate"].(map[string]interface{}); ok {
-		position, paused, doSeek, setBy = messages.ExtractStatePlaystateArguments(playstate, *user)
+	latencyCalculation := stateMsg.State.Ping.LatencyCalculation
+	clientLatencyCalculation := stateMsg.State.Ping.ClientLatencyCalculation
+	clientRtt := stateMsg.State.Ping.ClientRtt
+
+	err = room.SetUserLatencyCalculation(user, float64(time.Now().UnixNano())/1e9, clientLatencyCalculation, clientRtt, latencyCalculation)
+	if err != nil {
+		fmt.Println("Error storing user latency calculation")
 	}
 
-	if ping, ok := stateData["ping"].(map[string]interface{}); ok {
-		rtt, latencyCalculation, clientlatency, err = messages.HandleStatePing(ping)
-		if err != nil {
-			fmt.Println("Error handling state ping:", err)
-		}
-		// store latency calculation in room
-		err := room.SetUserLatencyCalculation(user, float64(time.Now().UnixNano())/1e9, clientlatency, rtt, latencyCalculation)
-		if err != nil {
-			fmt.Println("Error storing user latency calculation")
-		}
-
+	clientIgnoringOnTheFly := 0.0
+	if stateMsg.State.IgnoringOnTheFly != nil {
+		fmt.Println("Ignoring on the fly")
+		clientIgnoringOnTheFly = stateMsg.State.IgnoringOnTheFly.Client
 	}
 
-	if position != nil && paused != nil && doSeek != nil && setBy != nil {
-		messages.UpdateGlobalState(*user, position, paused, doSeek, setBy, latencyCalculation, messageAge, clientIgnoringOnTheFly)
-	}
+	messages.UpdateGlobalState(*user, position, paused, doSeek, setBy, latencyCalculation, 0, clientIgnoringOnTheFly)
 
-	// if ignoringOnTheFly is not 0, send global state to all users
 	if clientIgnoringOnTheFly != 0 {
 		messages.SendGlobalState(*user)
 	}
-
-	messages.GetLocalState()
-
 }
 
-func handleChatMessage(chatData interface{}, conn net.Conn) {
+func handleChatMessage(chatMsg string, conn net.Conn) {
 	fmt.Println("Handling chat message")
 	cm := connM.GetConnectionManager()
-	msg, ok := chatData.(string)
-	if !ok {
-		fmt.Println("Error decoding chat message: chatData is not a string")
-		return
-	}
-
 	username := cm.GetRoomByConnection(conn).GetUsernameByConnection(conn)
-	messages.SendChatMessage(msg, username)
+	messages.SendChatMessage(chatMsg, username)
 }
 
 func sendSessionInformation(connection roomM.Connection) {
