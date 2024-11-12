@@ -160,7 +160,7 @@ func sendStateMessage(room *roomM.Room, conn net.Conn, position float64, paused 
 	return nil
 }
 
-func HandleStatePing(ping map[string]interface{}) (clientRTT float64, latencyCalculation float64, clientLatencyCalculation float64) {
+func HandleStatePing(ping map[string]interface{}) (clientRTT float64, latencyCalculation float64, clientLatencyCalculation float64, err error) {
 	/*
 				General client ping (no file open / paused at beginning)
 
@@ -189,25 +189,24 @@ func HandleStatePing(ping map[string]interface{}) (clientRTT float64, latencyCal
 		}
 	*/
 
-	// TODO: Implement client latency calculation using last message time and current time (messageAge)
 	latencyCalculation, ok := ping["latencyCalculation"].(float64)
 	if !ok {
-		latencyCalculation = 0
+		return 0, 0, 0, fmt.Errorf("invalid latencyCalculation")
 	}
 
-	ClientRtt, ok := ping["clientRtt"].(float64)
+	clientRTT, ok = ping["clientRtt"].(float64)
 	if !ok {
-		ClientRtt = 0
+		return 0, 0, 0, fmt.Errorf("invalid clientRtt")
 	}
 
-	ClientLatencyCalculation, ok := ping["clientLatencyCalculation"].(float64)
+	clientLatencyCalculation, ok = ping["clientLatencyCalculation"].(float64)
 	if !ok {
-		ClientLatencyCalculation = 0
+		return 0, 0, 0, fmt.Errorf("invalid clientLatencyCalculation")
 	}
 
 	// playstate logic
 
-	return ClientRtt, latencyCalculation, ClientLatencyCalculation
+	return clientRTT, latencyCalculation, clientLatencyCalculation, nil
 }
 
 var globalState = struct {
@@ -217,7 +216,7 @@ var globalState = struct {
 	setBy    interface{}
 }{}
 
-func UpdateGlobalState(connection roomM.Connection, position, paused, doSeek, setBy interface{}, messageAge float64, latencyCalculation float64, Ignore float64) {
+func UpdateGlobalState(connection roomM.Connection, position, paused, doSeek, setBy interface{}, messageAge float64, latencyCalculation float64, Ignore float64) error {
 
 	room := connection.Owner
 
@@ -232,19 +231,16 @@ func UpdateGlobalState(connection roomM.Connection, position, paused, doSeek, se
 		setBy = connection.Username
 		err := room.PlaylistManager.SetUserPlaystate(connection.Username, position.(float64), paused.(bool), doSeek.(bool), setBy.(string), messageAge, true)
 		if err != nil {
-			fmt.Println("Error storing user playstate")
+			return fmt.Errorf("error storing user playstate: %w", err)
 		}
 	} else {
-
-		// check if the positon is within the acceptable range compared to the servers calculated position
-
-		// if it is, update the position
 		err := room.PlaylistManager.SetUserPlaystate(connection.Username, position.(float64), paused.(bool), doSeek.(bool), setBy.(string), messageAge, false)
 		if err != nil {
-			fmt.Println("Error storing user playstate")
+			return fmt.Errorf("error storing user playstate: %w", err)
 		}
 	}
 
+	return nil
 }
 
 func GetLocalState() (interface{}, interface{}, interface{}, interface{}) {

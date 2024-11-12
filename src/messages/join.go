@@ -88,11 +88,11 @@ func HandleUserMoveRoomMessage(connection roomM.Connection, RoomData interface{}
 			return
 		}
 
-		err = BroadcastJoinAnnouncement(connection)
-		if err != nil {
-			fmt.Printf("Failed to send Join Announcement: " + err.Error())
-			return
-		}
+		// err = BroadcastJoinAnnouncement(connection)
+		// if err != nil {
+		// 	fmt.Printf("Failed to send Join Announcement: " + err.Error())
+		// 	return
+		// }
 	}
 }
 

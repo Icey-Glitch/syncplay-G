@@ -1,7 +1,6 @@
 package messages
 
 import (
-	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -18,9 +17,39 @@ type FileInfo struct {
 }
 
 // PlayerInfo represents the player information.
+/*
+"car1": {
+        "position": 0,
+        "file": {},
+        "controller": false,
+        "isReady": false,
+        "features": {
+          "sharedPlaylists": true,
+          "chat": true,
+          "uiMode": "GUI",
+          "featureList": true,
+          "readiness": true,
+          "managedRooms": true,
+          "persistentRooms": true
+        }
+      }
+*/
 type PlayerInfo struct {
-	Position *float64 `json:"position,omitempty"`
-	File     FileInfo `json:"file"`
+	Position   *float64    `json:"position,omitempty"`
+	File       interface{} `json:"file"`
+	Controller bool        `json:"controller"`
+	IsReady    bool        `json:"isReady"`
+	Features   FeaturesList
+}
+
+type FeaturesList struct {
+	SharedPlaylists bool   `json:"sharedPlaylists"`
+	Chat            bool   `json:"chat"`
+	UIMode          string `json:"uiMode"`
+	FeatureList     bool   `json:"featureList"`
+	Readiness       bool   `json:"readiness"`
+	ManagedRooms    bool   `json:"managedRooms"`
+	PersistentRooms bool   `json:"persistentRooms"`
 }
 
 // RoomInfo represents the room information.
@@ -33,7 +62,7 @@ type ListResponse struct {
 
 // handleListRequest handles the "List" request and returns the response.
 func HandleListRequest(connection roomM.Connection) {
-	fmt.Println("List request received")
+	//fmt.Println("List request received")
 
 	// Initialize the list map
 	list := make(map[string]RoomInfo)
@@ -45,25 +74,33 @@ func HandleListRequest(connection roomM.Connection) {
 		return
 	}
 
+	// retrive ready states from the ReadyManager
+	var readyStates = connection.Owner.ReadyManager.GetReadyStates()
+
 	// Use a mutex to ensure thread-safe access to shared resources
 	var mutex sync.RWMutex
 
 	// Iterate over the users and construct the room info
 	for _, user := range users {
-		if user.File == nil {
-			break
+		// if empty "file": {},
+		var fileInfo interface{}
+		if user.File != nil {
+			fileInfo = FileInfo{
+				Duration: user.File.Duration,
+				Name:     user.File.Name,
+				Size:     user.File.Size,
+			}
+		} else {
+			fileInfo = struct{}{}
 		}
 
-		fileInfo := FileInfo{
-			Duration: user.File.Duration,
-			Name:     user.File.Name,
-			Size:     user.File.Size,
-		}
 		playerInfo := PlayerInfo{
 			File: fileInfo,
 		}
 
 		playerInfo.Position = &user.Position
+		playerInfo.Controller = false
+		playerInfo.IsReady = readyStates[user.Username].IsReady
 
 		// Lock the mutex for writing
 		mutex.Lock()
@@ -82,13 +119,13 @@ func HandleListRequest(connection roomM.Connection) {
 		List: list,
 	}
 
-	// pretty print the response
-	jsonresponse, err := json.Marshal(response)
-	if err != nil {
-		fmt.Println("Error: Failed to marshal list response:", err)
-		return
-	}
-	utils.PrettyPrintJSON(jsonresponse)
+	// prety print the response
+	// jsonResponse, err := json.MarshalIndent(response, "", "  ")
+	// if err != nil {
+	// 	fmt.Println("Error: Failed to marshal list response:", err)
+	// 	return
+	// }
+	// fmt.Println("List response:", string(jsonResponse))
 
 	err1 := utils.SendJSONMessage(connection.Conn, response)
 	if err1 != nil {

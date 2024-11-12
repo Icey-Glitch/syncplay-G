@@ -53,6 +53,13 @@ func (rm *ReadyManager) GetUserReadyState(username string) (ReadyState, bool) {
 	return state, exists
 }
 
+func (rm *ReadyManager) GetReadyStates() map[string]ReadyState {
+	rm.mutex.RLock()
+	defer rm.mutex.RUnlock()
+
+	return rm.readyStates
+}
+
 func (rm *ReadyManager) RemoveUserReadyState(username string) {
 	rm.mutex.Lock()
 	defer rm.mutex.Unlock()

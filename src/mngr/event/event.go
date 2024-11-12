@@ -60,7 +60,7 @@ type ManagedEvent struct {
 }
 
 type Ticker struct {
-	interval   int // seconds
+	Interval   int // seconds
 	Repeat     bool
 	StopTicker bool
 }
@@ -74,7 +74,7 @@ func (em *EventManager) NewManagedEvent(interval int, fn interface{}, repeat boo
 
 	ne := &ManagedEvent{
 		Event:    Event{},
-		Ticker:   &Ticker{interval: interval, Repeat: repeat},
+		Ticker:   &Ticker{Interval: interval, Repeat: repeat},
 		Function: fnValue,
 		Params:   paramsValue,
 		stopChan: make(chan struct{}),
@@ -91,7 +91,7 @@ func (em *EventManager) NewManagedEvent(interval int, fn interface{}, repeat boo
 
 func (e *ManagedEvent) Start() {
 	go func() {
-		ticker := time.NewTicker(time.Duration(e.Ticker.interval) * time.Second)
+		ticker := time.NewTicker(time.Duration(e.Ticker.Interval) * time.Second)
 		defer ticker.Stop()
 
 		for {
@@ -135,7 +135,7 @@ func (e *ManagedEvent) Stop() {
 // NewTicker creates a new Ticker
 func NewTicker(interval int, repeat bool) *Ticker {
 	return &Ticker{
-		interval:   interval,
+		Interval:   interval,
 		Repeat:     repeat,
 		StopTicker: false,
 	}

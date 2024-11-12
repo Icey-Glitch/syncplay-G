@@ -99,3 +99,11 @@ func TestManagedEvent_Params(t *testing.T) {
 	time.Sleep(2 * time.Second)
 	me.Stop()
 }
+
+// NewTickerTest is a test function for the Ticker struct
+func TestTicker_NewTicker(t *testing.T) {
+	ticker := event.NewTicker(1, true)
+	if ticker.Interval != 1 || !ticker.Repeat {
+		t.Errorf("Expected interval 1 and Repeat true, got interval %d and Repeat %t", ticker.Interval, ticker.Repeat)
+	}
+}

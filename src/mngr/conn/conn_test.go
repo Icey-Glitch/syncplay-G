@@ -12,7 +12,7 @@ func TestNewConnectionManager(t *testing.T) {
 
 	assert.NotNil(t, cm)
 	assert.NotNil(t, cm.rooms)
-	assert.NotNil(t, cm.mutex)
+	assert.NotNil(t, &cm.mutex)
 	assert.NotNil(t, cm.connectionEvent)
 }
 
@@ -21,7 +21,7 @@ func TestGetConnectionManager(t *testing.T) {
 
 	assert.NotNil(t, cm)
 	assert.NotNil(t, cm.rooms)
-	assert.NotNil(t, cm.mutex)
+	assert.NotNil(t, &cm.mutex)
 	assert.NotNil(t, cm.connectionEvent)
 }
 

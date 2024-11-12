@@ -291,7 +291,10 @@ func handleStateMessage(stateMsg interface{}, conn net.Conn) {
 	}
 
 	if ping, ok := stateData["ping"].(map[string]interface{}); ok {
-		rtt, latencyCalculation, clientlatency = messages.HandleStatePing(ping)
+		rtt, latencyCalculation, clientlatency, err = messages.HandleStatePing(ping)
+		if err != nil {
+			fmt.Println("Error handling state ping:", err)
+		}
 		// store latency calculation in room
 		err := room.SetUserLatencyCalculation(user, float64(time.Now().UnixNano())/1e9, clientlatency, rtt, latencyCalculation)
 		if err != nil {
