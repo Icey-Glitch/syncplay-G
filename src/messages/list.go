@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	Features "github.com/Icey-Glitch/Syncplay-G/features"
 	"github.com/Icey-Glitch/Syncplay-G/utils"
 
 	roomM "github.com/Icey-Glitch/Syncplay-G/mngr/room"
@@ -77,6 +78,9 @@ func HandleListRequest(connection roomM.Connection) {
 	// retrive ready states from the ReadyManager
 	var readyStates = connection.Owner.ReadyManager.GetReadyStates()
 
+	// global features
+	var features = Features.GlobalFeatures
+
 	// Use a mutex to ensure thread-safe access to shared resources
 	var mutex sync.RWMutex
 
@@ -101,6 +105,15 @@ func HandleListRequest(connection roomM.Connection) {
 		playerInfo.Position = &user.Position
 		playerInfo.Controller = false
 		playerInfo.IsReady = readyStates[user.Username].IsReady
+		playerInfo.Features = FeaturesList{
+			SharedPlaylists: features.SharedPlaylists,
+			Chat:            features.Chat,
+			UIMode:          "GUI",
+			FeatureList:     true,
+			Readiness:       features.Readiness,
+			ManagedRooms:    features.ManagedRooms,
+			PersistentRooms: features.PersistentRooms,
+		}
 
 		// Lock the mutex for writing
 		mutex.Lock()

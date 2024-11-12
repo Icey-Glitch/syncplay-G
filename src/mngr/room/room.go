@@ -114,7 +114,6 @@ func (r *Room) GetConnections() []*Connection {
 }
 
 func (r *Room) AddConnection(connection *Connection) error {
-	// check if room is valid
 	if connection.Owner == nil {
 		return fmt.Errorf("room is nil")
 	}
@@ -122,26 +121,25 @@ func (r *Room) AddConnection(connection *Connection) error {
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
 
-	// check if connection already exists
-	for _, conn := range r.Users {
-		if conn.Conn == connection.Conn {
-			return fmt.Errorf("connection already exists")
-		}
-
-		if conn.Username == connection.Username {
-			return fmt.Errorf("username already exists")
-		}
+	if r.connectionExists(connection) {
+		return fmt.Errorf("connection or username already exists")
 	}
 
 	r.Users = append(r.Users, connection)
-
-	// add playstate
-	err := r.PlaylistManager.CreateUserPlaystate(connection.Username)
-	if err != nil {
+	if err := r.PlaylistManager.CreateUserPlaystate(connection.Username); err != nil {
 		fmt.Println("Failed to create user playstate " + err.Error())
 		return err
 	}
 	return nil
+}
+
+func (r *Room) connectionExists(connection *Connection) bool {
+	for _, conn := range r.Users {
+		if conn.Conn == connection.Conn || conn.Username == connection.Username {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *Room) RemoveConnection(conn net.Conn) {
@@ -150,24 +148,21 @@ func (r *Room) RemoveConnection(conn net.Conn) {
 
 	for i, connection := range r.Users {
 		if connection.Conn == conn {
-
-			// delete ready state
-			r.ReadyManager.RemoveUserReadyState(connection.Username)
-			// delete playstate
-			err := r.PlaylistManager.RemoveUserPlaystate(connection.Username)
-			if err != nil {
-				fmt.Println("failed to remove UserPlaystate " + err.Error())
-				return
-			}
-			// remove connection
+			r.removeUserStates(connection)
 			r.Users = append(r.Users[:i], r.Users[i+1:]...)
-
 			if connection.StateEvent != nil {
 				connection.StateEvent.Stop()
 			}
-
 			break
 		}
+	}
+}
+
+// RemoveConnectionByUsername remove connection by username
+func (r *Room) removeUserStates(connection *Connection) {
+	r.ReadyManager.RemoveUserReadyState(connection.Username)
+	if err := r.PlaylistManager.RemoveUserPlaystate(connection.Username); err != nil {
+		fmt.Println("failed to remove UserPlaystate " + err.Error())
 	}
 }
 
