@@ -66,18 +66,14 @@ func HandleJoinMessage(conn net.Conn, msg map[string]interface{}) {
 }
 
 type RoomMessage struct {
-	Set struct {
-		Room struct {
-			Name string `json:"name"`
-		} `json:"room"`
-	} `json:"Set"`
+	Name string `json:"name"`
 }
 
 // User Move room message
-func HandleUserMoveRoomMessage(connection roomM.Connection, RoomData interface{}) {
+func HandleUserMoveRoomMessage(connection roomM.Connection, msg *RoomMessage) {
 	// {"Set": {"room": {"name": "room"}}}
-	roomDataMap := RoomData.(map[string]interface{})
-	roomName := roomDataMap["name"].(string)
+
+	roomName := msg.Name
 
 	// Move the user to the new room
 	cm := connM.GetConnectionManager()
@@ -122,19 +118,18 @@ func HandleUserLeftMessage(connection roomM.Connection) {
 	}
 }
 
+type RoomChangeMessage struct {
+	Set struct {
+		Room struct {
+			Name string `json:"name"`
+		} `json:"room"`
+	} `json:"Set"`
+}
+
 // Broadcast User Room change message
 func BroadcastUserRoomChangeMessage(connection roomM.Connection, roomName string) {
-	announcement := map[string]interface{}{
-		"Set": map[string]interface{}{
-			"user": map[string]interface{}{
-				connection.Username: map[string]interface{}{
-					"room": map[string]interface{}{
-						"name": roomName,
-					},
-				},
-			},
-		},
-	}
+	announcement := RoomChangeMessage{}
+	announcement.Set.Room.Name = roomName
 	utils.SendJSONMessageMultiCast(announcement, connection.Owner.Name)
 }
 

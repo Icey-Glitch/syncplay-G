@@ -245,20 +245,20 @@ func handleStateMessage(stateMsg *messages.ClientStateMessage, conn net.Conn) {
 		return
 	}
 
-	// print the state message
+	// pritty print the state message
 	fmt.Println("State message:", stateMsg)
 
-	position := stateMsg.State.Playstate.Position
-	paused := stateMsg.State.Playstate.Paused
-	doSeek := stateMsg.State.Playstate.DoSeek
-	setBy := stateMsg.State.Playstate.SetBy
+	position := stateMsg.Playstate.Position
+	paused := stateMsg.Playstate.Paused
+	doSeek := stateMsg.Playstate.DoSeek
+	setBy := stateMsg.Playstate.SetBy
 	if setBy == "" || setBy == nil {
 		setBy = "Nobody"
 	}
 
-	latencyCalculation := stateMsg.State.Ping.LatencyCalculation
-	clientLatencyCalculation := stateMsg.State.Ping.ClientLatencyCalculation
-	clientRtt := stateMsg.State.Ping.ClientRtt
+	latencyCalculation := stateMsg.Ping.LatencyCalculation
+	clientLatencyCalculation := stateMsg.Ping.ClientLatencyCalculation
+	clientRtt := stateMsg.Ping.ClientRtt
 
 	err = room.SetUserLatencyCalculation(user, float64(time.Now().UnixNano())/1e9, clientLatencyCalculation, clientRtt, latencyCalculation)
 	if err != nil {
@@ -266,9 +266,9 @@ func handleStateMessage(stateMsg *messages.ClientStateMessage, conn net.Conn) {
 	}
 
 	clientIgnoringOnTheFly := 0.0
-	if stateMsg.State.IgnoringOnTheFly != nil {
+	if stateMsg.IgnoringOnTheFly != nil {
 		fmt.Println("Ignoring on the fly")
-		clientIgnoringOnTheFly = stateMsg.State.IgnoringOnTheFly.Client
+		clientIgnoringOnTheFly = stateMsg.IgnoringOnTheFly.Client
 	}
 
 	messages.UpdateGlobalState(*user, position, paused, doSeek, setBy, latencyCalculation, 0, clientIgnoringOnTheFly)

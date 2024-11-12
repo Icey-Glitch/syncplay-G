@@ -10,22 +10,21 @@ import (
 )
 
 type ClientStateMessage struct {
-	State struct {
-		// optional elements
-		IgnoringOnTheFly *IgnoringOnTheFly `json:"ignoringOnTheFly,omitempty"`
-
-		Playstate struct {
-			Position float64     `json:"position"`
-			Paused   bool        `json:"paused"`
-			DoSeek   bool        `json:"doSeek"`
-			SetBy    interface{} `json:"setBy"`
-		} `json:"playstate"`
-		Ping struct {
-			LatencyCalculation       float64 `json:"latencyCalculation"`
-			ClientLatencyCalculation float64 `json:"clientLatencyCalculation"`
-			ClientRtt                float64 `json:"clientRtt"`
-		} `json:"ping"`
-	} `json:"State"`
+	//State struct {
+	// optional elements
+	IgnoringOnTheFly *IgnoringOnTheFly `json:"ignoringOnTheFly,omitempty"`
+	Ping             struct {
+		ClientRtt                float64 `json:"clientRtt"`
+		ClientLatencyCalculation float64 `json:"clientLatencyCalculation"`
+		LatencyCalculation       float64 `json:"latencyCalculation"`
+	} `json:"ping"`
+	Playstate struct {
+		Paused   bool        `json:"paused"`
+		Position float64     `json:"position"`
+		DoSeek   bool        `json:"doSeek,omitempty"`
+		SetBy    interface{} `json:"setBy,omitempty"`
+	} `json:"playstate"`
+	//} `json:"State"`
 }
 
 type ServerStateMessage struct {

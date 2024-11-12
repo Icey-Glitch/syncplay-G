@@ -34,9 +34,13 @@ type PlaylistIndexMessage struct {
 	Set struct {
 		PlaylistIndex struct {
 			Index interface{} `json:"index"`
-			User  interface{} `json:"user"`
+			User  string      `json:"user"`
 		} `json:"playlistIndex"`
 	} `json:"Set"`
+}
+
+type ClientPlaylistIndexMessage struct {
+	Index int `json:"index"`
 }
 
 // HandlePlaylistIndexMessage handle
