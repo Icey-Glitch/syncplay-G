@@ -143,19 +143,33 @@ func (r *Room) connectionExists(connection *Connection) bool {
 }
 
 func (r *Room) RemoveConnection(conn net.Conn) {
-	r.Mutex.Lock()
-	defer r.Mutex.Unlock()
+    var connection *Connection
+    index := -1
 
-	for i, connection := range r.Users {
-		if connection.Conn == conn {
-			r.removeUserStates(connection)
-			r.Users = append(r.Users[:i], r.Users[i+1:]...)
-			if connection.StateEvent != nil {
-				connection.StateEvent.Stop()
-			}
-			break
-		}
-	}
+    // Find the connection index outside the critical section
+    for i, c := range r.Users {
+        if c.Conn == conn {
+            connection = c
+            index = i
+            break
+        }
+    }
+
+    if index != -1 {
+        r.Mutex.Lock()
+        defer r.Mutex.Unlock()
+        // Swap the element to remove with the last element
+        r.Users[index] = r.Users[len(r.Users)-1]
+        r.Users[len(r.Users)-1] = nil // avoid memory leak
+        r.Users = r.Users[:len(r.Users)-1]
+    }
+
+    if connection != nil {
+        r.removeUserStates(connection)
+        if connection.StateEvent != nil {
+            connection.StateEvent.Stop()
+        }
+    }
 }
 
 // RemoveConnectionByUsername remove connection by username

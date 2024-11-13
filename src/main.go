@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"log"
 	"net"
@@ -19,8 +18,8 @@ import (
 )
 
 var (
-	maxWorkers = 100 // limit concurrent goroutines
-	workerPool = make(chan struct{}, maxWorkers)
+	maxWorkers = 100                      // Limit concurrent workers
+	connChan   = make(chan net.Conn, 100) // Channel to queue incoming connections
 )
 
 func main() {
@@ -33,21 +32,22 @@ func main() {
 	if err != nil {
 		log.Fatal("Error starting server:", err)
 	}
-	defer func(ln net.Listener) {
-		err := ln.Close()
-		if err != nil {
-			fmt.Println("Error closing listener:", err)
-		}
-	}(ln)
+	defer ln.Close()
+
+	// Start worker goroutines
+	for i := 0; i < maxWorkers; i++ {
+		go worker()
+	}
 
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			fmt.Println("Error accepting connection:", err)
+			utils.DebugLog("Error accepting connection:", err)
 			continue
 		}
 
-		go handleClient(conn)
+		// Send the connection to connChan
+		connChan <- conn
 	}
 }
 
@@ -73,16 +73,18 @@ type Message struct {
 	List  *messages.ListRequest        `json:"List,omitempty"`
 }
 
+func worker() {
+	for conn := range connChan {
+		handleClient(conn)
+	}
+}
+
 func handleClient(conn net.Conn) {
-	workerPool <- struct{}{}
-	defer func(conn net.Conn) {
-		_ = conn.Close()
-		<-workerPool
-	}(conn)
+	defer conn.Close()
 
 	err := conn.SetDeadline(time.Now().Add(time.Minute * 5))
 	if err != nil {
-		fmt.Println("Failed to set deadline:", err)
+		utils.DebugLog("Failed to set deadline:", err)
 		return
 	}
 
@@ -93,7 +95,7 @@ func handleClient(conn net.Conn) {
 		var msg Message
 		if err = decoder.Decode(&msg); err == io.EOF {
 			cm := connM.GetConnectionManager()
-			fmt.Println("Client disconnected")
+			utils.DebugLog("Client disconnected")
 			room := cm.GetRoomByConnection(conn)
 			if room == nil {
 				return
@@ -105,9 +107,14 @@ func handleClient(conn net.Conn) {
 			}
 			messages.HandleUserLeftMessage(*usr)
 			cm.RemoveConnection(conn)
+
+			// Stop any associated ManagedEvent
+			em := room.GetStateEventManager()
+			em.StopAll()
+
 			return
 		} else if err != nil {
-			fmt.Println("Error decoding message:", err)
+			utils.DebugLog("Error decoding message:", err)
 			break
 		}
 
@@ -125,7 +132,7 @@ func handleClient(conn net.Conn) {
 		case msg.List == nil:
 			handleListMessage(conn)
 		default:
-			fmt.Println("Unknown message type " + fmt.Sprintf("%+v", msg))
+			utils.DebugLog("Unknown message type: %v\n", msg)
 		}
 	}
 }
@@ -144,13 +151,13 @@ func handleStartTLSMessage(conn net.Conn) {
 	cm := connM.GetConnectionManager()
 	room := cm.GetRoomByConnection(conn)
 	if room != nil {
-		fmt.Println("Removing connection from room")
+		utils.DebugLog("Removing connection from room")
 		cm.RemoveConnection(conn)
 	}
 
-	fmt.Println("Sending StartTLS response:", string(payload))
+	utils.DebugLog("Sending StartTLS response:", string(payload))
 	if _, err := conn.Write(payload); err != nil {
-		fmt.Println("Error sending StartTLS response:", err)
+		utils.DebugLog("Error sending StartTLS response:", err)
 	}
 
 }
@@ -163,21 +170,21 @@ func handleHelloMessage(helloMsg *HelloMessage, conn net.Conn) {
 	if cm.GetRoom(roomName) == nil {
 		roomObj := cm.CreateRoom(roomName)
 		if roomObj == nil {
-			fmt.Println("Failed to create room")
+			utils.DebugLog("Failed to create room")
 			return
 		}
 	}
 
 	connection, coner := cm.AddConnection(username, roomName, nil, conn)
 	if coner != nil {
-		fmt.Println("Error adding connection to room:", coner)
+		utils.DebugLog("Error adding connection to room:", coner)
 		messages.SendMessageToUser(username+" is already in the room", "server", conn)
 		return
 	}
 
 	err := messages.BroadcastJoinAnnouncement(*connection)
 	if err != nil {
-		fmt.Println("Failed to send join announcement:", err)
+		utils.DebugLog("Failed to send join announcement:", err)
 		return
 	}
 
@@ -186,7 +193,7 @@ func handleHelloMessage(helloMsg *HelloMessage, conn net.Conn) {
 	response := messages.CreateHelloResponse(username, "1.7.3", roomName)
 	err = utils.SendJSONMessage(conn, response)
 	if err != nil {
-		fmt.Println("Failed to send hello to", username, ":", err)
+		utils.DebugLog("Failed to send hello to", username, ":", err)
 		return
 	}
 
@@ -203,24 +210,21 @@ func handleSetMessage(setMsg *messages.SetMessage, conn net.Conn) {
 		return
 	}
 
-	if setMsg.User != nil {
+	switch {
+	case setMsg.User != nil:
 		messages.HandleUserMessage(setMsg.User, conn)
-	}
-	if setMsg.Ready != nil {
+	case setMsg.Ready != nil:
 		messages.HandleReadyMessage(setMsg.Ready, usr)
-	}
-	if setMsg.PlaylistChange != nil {
+	case setMsg.PlaylistChange != nil:
 		messages.HandlePlaylistChangeMessage(setMsg.PlaylistChange, *usr)
-	}
-	if setMsg.PlaylistIndex != nil {
+	case setMsg.PlaylistIndex != nil:
 		messages.HandlePlaylistIndexMessage(*usr, setMsg.PlaylistIndex)
-	}
-	if setMsg.File != nil {
+	case setMsg.File != nil:
 		messages.HandleFileMessage(*usr, setMsg.File)
-	}
-	if setMsg.Room != nil {
+	case setMsg.Room != nil:
 		messages.HandleUserMoveRoomMessage(*usr, setMsg.Room)
 	}
+
 }
 
 // func handle list message
@@ -229,7 +233,7 @@ func handleListMessage(conn net.Conn) {
 	room := cm.GetRoomByConnection(conn)
 	usr, err := room.GetConnectionByConn(conn)
 	if err != nil {
-		//fmt.Println("Error getting connection by conn:", err)
+		//utils.DebugLog("Error getting connection by conn:", err)
 		return
 	}
 
@@ -246,7 +250,7 @@ func handleStateMessage(stateMsg *messages.ClientStateMessage, conn net.Conn) {
 	}
 
 	// pritty print the state message
-	fmt.Println("State message:", stateMsg)
+	utils.DebugLog("State message:", stateMsg)
 
 	position := stateMsg.Playstate.Position
 	paused := stateMsg.Playstate.Paused
@@ -262,12 +266,12 @@ func handleStateMessage(stateMsg *messages.ClientStateMessage, conn net.Conn) {
 
 	err = room.SetUserLatencyCalculation(user, float64(time.Now().UnixNano())/1e9, clientLatencyCalculation, clientRtt, latencyCalculation)
 	if err != nil {
-		fmt.Println("Error storing user latency calculation")
+		utils.DebugLog("Error storing user latency calculation")
 	}
 
 	clientIgnoringOnTheFly := 0.0
 	if stateMsg.IgnoringOnTheFly != nil {
-		fmt.Println("Ignoring on the fly")
+		utils.DebugLog("Ignoring on the fly")
 		clientIgnoringOnTheFly = stateMsg.IgnoringOnTheFly.Client
 	}
 
@@ -279,7 +283,7 @@ func handleStateMessage(stateMsg *messages.ClientStateMessage, conn net.Conn) {
 }
 
 func handleChatMessage(chatMsg string, conn net.Conn) {
-	fmt.Println("Handling chat message")
+	utils.DebugLog("Handling chat message")
 	cm := connM.GetConnectionManager()
 	username := cm.GetRoomByConnection(conn).GetUsernameByConnection(conn)
 	messages.SendChatMessage(chatMsg, username)
@@ -292,10 +296,10 @@ func sendSessionInformation(connection roomM.Connection) {
 }
 
 func setupStatusScheduler(connection roomM.Connection) {
-	fmt.Println("Setting up status scheduler")
+	utils.DebugLog("Setting up status scheduler")
 	room := connection.Owner
 	if room == nil {
-		fmt.Println("Error: Room not found")
+		utils.DebugLog("Error: Room not found")
 		return
 	}
 
@@ -306,5 +310,5 @@ func setupStatusScheduler(connection roomM.Connection) {
 	managedEvent := em.NewManagedEvent(1, messages.SendUserState, true, params, room.GetStateEventTicker())
 
 	managedEvent.Start()
-	fmt.Println("Status scheduler started")
+	utils.DebugLog("Status scheduler started")
 }

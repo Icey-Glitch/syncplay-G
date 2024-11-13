@@ -30,9 +30,6 @@ func InsertSpaceAfterColons(jsonData []byte) []byte {
 var sendMutex sync.Mutex
 
 func SendJSONMessage(conn net.Conn, message interface{}) error {
-	sendMutex.Lock()
-	defer sendMutex.Unlock()
-
 	if conn == nil {
 		return fmt.Errorf("connection is nil")
 	}
@@ -42,11 +39,11 @@ func SendJSONMessage(conn net.Conn, message interface{}) error {
 		return fmt.Errorf("error marshalling JSON message: %w", err)
 	}
 
-	data = append(data, '\x0d', '\x0a')
+	// Append CRLF
+	data = append(data, '\r', '\n')
 
-	payload := []byte(data)
-
-	_, err = conn.Write(payload)
+	// Write data to connection
+	_, err = conn.Write(data)
 	if err != nil {
 		return fmt.Errorf("error writing JSON message to connection: %w", err)
 	}

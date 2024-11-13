@@ -18,6 +18,7 @@ type ConnectionManager struct {
 	rooms           map[string]*roomM.Room
 	mutex           sync.RWMutex
 	connectionEvent *event.Event
+	connToRoom      map[net.Conn]*roomM.Room // Map to store connection to room mapping
 }
 
 func NewConnectionManager() *ConnectionManager {
@@ -32,6 +33,7 @@ func GetConnectionManager() *ConnectionManager {
 		connectionManager = &ConnectionManager{
 			rooms:           make(map[string]*roomM.Room),
 			connectionEvent: event.NewEvent(),
+			connToRoom:      make(map[net.Conn]*roomM.Room),
 		}
 	}
 	return connectionManager
@@ -59,6 +61,7 @@ func (cm *ConnectionManager) AddConnection(username, roomName string, state inte
 	}
 
 	room := cm.rooms[roomName]
+	cm.connToRoom[conn] = room // Update the map
 
 	err := room.AddConnection(connection)
 	if err != nil {
@@ -118,6 +121,7 @@ func (cm *ConnectionManager) MoveConnection(username string, newRoomName string,
 	return connectionobj, nil
 }
 
+// TODO: maybe deprecate, very expensive to iterate over all rooms. if you have the room, or conn you can do it directly on the room.
 func (cm *ConnectionManager) RemoveConnection(conn net.Conn) {
 	cm.mutex.Lock()
 	defer cm.mutex.Unlock()
@@ -152,14 +156,7 @@ func (cm *ConnectionManager) GetRoomByConnection(conn net.Conn) *roomM.Room {
 	cm.mutex.RLock()
 	defer cm.mutex.RUnlock()
 
-	for _, room := range cm.rooms {
-		for _, connection := range room.Users {
-			if connection.Conn == conn {
-				return room
-			}
-		}
-	}
-	return nil
+	return cm.connToRoom[conn]
 }
 
 func (cm *ConnectionManager) GetRoomByUsername(username string) *roomM.Room {

@@ -114,6 +114,7 @@ func (e *ManagedEvent) Start() {
 					return
 				}
 			case <-e.stopChan:
+				fmt.Println("ManagedEvent stopped")
 				return
 			}
 		}
@@ -129,6 +130,7 @@ func (e *ManagedEvent) Stop() {
 		if e.owner != nil {
 			e.owner.RemoveEvent(e)
 		}
+		fmt.Println("ManagedEvent stopped")
 	}
 }
 
@@ -143,8 +145,9 @@ func NewTicker(interval int, repeat bool) *Ticker {
 
 // EventManager manages events
 type EventManager struct {
-	events map[*ManagedEvent]bool
-	mutex  sync.RWMutex
+	events    map[*ManagedEvent]bool
+	mutex     sync.RWMutex
+	stopMutex sync.Mutex // Separate mutex for stopping events
 }
 
 // NewEventManager creates a new EventManager
@@ -172,6 +175,9 @@ func (em *EventManager) RemoveEvent(event *ManagedEvent) {
 
 // Add logging to StopAll to help debug the issue
 func (em *EventManager) StopAll() {
+	em.stopMutex.Lock()
+	defer em.stopMutex.Unlock()
+
 	em.mutex.Lock()
 	defer em.mutex.Unlock()
 
