@@ -69,7 +69,7 @@ type ListResponse struct {
 
 // handleListRequest handles the "List" request and returns the response.
 func HandleListRequest(connection roomM.Connection) {
-	fmt.Println("List request received")
+	//fmt.Println("List request received")
 
 	// Initialize the list map
 	list := make(map[string]RoomInfo)

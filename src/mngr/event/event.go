@@ -22,7 +22,7 @@ func (e *Event) Subscribe() chan interface{} {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 
-	ch := make(chan interface{})
+	ch := make(chan interface{}, 1) // Use buffered channel to avoid blocking
 	e.listeners = append(e.listeners, ch)
 	return ch
 }
@@ -46,7 +46,11 @@ func (e *Event) Publish(data interface{}) {
 	defer e.mutex.RUnlock()
 
 	for _, listener := range e.listeners {
-		listener <- data
+		select {
+		case listener <- data:
+		default:
+			// Drop the message if the listener is not ready to receive
+		}
 	}
 }
 
@@ -97,15 +101,10 @@ func (e *ManagedEvent) Start() {
 		for {
 			select {
 			case <-ticker.C:
-				// Check if any of the parameters are nil
-				for _, param := range e.Params {
-					if param.Kind() == reflect.Ptr || param.Kind() == reflect.Interface || param.Kind() == reflect.Map || param.Kind() == reflect.Slice || param.Kind() == reflect.Chan {
-						if param.IsNil() {
-							fmt.Println("Error: One of the parameters is nil")
-							e.Stop()
-							return
-						}
-					}
+				if e.checkParams() {
+					fmt.Println("Error: One of the parameters is nil")
+					e.Stop()
+					return
 				}
 				// check return value of function
 				ret := e.Function.Call(e.Params)
@@ -119,6 +118,17 @@ func (e *ManagedEvent) Start() {
 			}
 		}
 	}()
+}
+
+func (e *ManagedEvent) checkParams() bool {
+	for _, param := range e.Params {
+		if param.Kind() == reflect.Ptr || param.Kind() == reflect.Interface || param.Kind() == reflect.Map || param.Kind() == reflect.Slice || param.Kind() == reflect.Chan {
+			if param.IsNil() {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (e *ManagedEvent) Stop() {

@@ -131,32 +131,28 @@ func SendPlaylistIndexMessage(connection roomM.Connection) {
 	playlistIndexMessage.Set.PlaylistIndex.Index = PlaylistObject.Index
 	playlistIndexMessage.Set.PlaylistIndex.User = connection.Username
 
-	utils.SendJSONMessageMultiCast(playlistIndexMessage, connection.Owner.Name)
+	utils.SendJSONMessageMultiCast(playlistIndexMessage, connection.Owner)
 
 }
 
 // SendPlaylistChangeMessage Takes in list of extracted files as a map of strings and then sends the message to all connections in the room
 func SendPlaylistChangeMessage(connection roomM.Connection, files []string) {
-
 	if connection.Owner == nil {
 		return
 	}
-	PlaylistObject := connection.Owner.PlaylistManager.GetPlaylist()
 
-	fmt.Println("PlaylistObject: ", PlaylistObject)
+	playlist := connection.Owner.PlaylistManager.GetPlaylist()
 
 	playlistChangeMessage := PlaylistChangeMessage{}
 
-	playlistChangeMessage.Set.PlaylistChange.User = connection.Username
-	if files != nil {
-		playlistChangeMessage.Set.PlaylistChange.Files = files
-	} else {
+	playlistChangeMessage.Set.PlaylistChange.User = playlist.User.Username
+	playlistChangeMessage.Set.PlaylistChange.Files = files
+
+	if files == nil {
 		playlistChangeMessage.Set.PlaylistChange.Files = []string{}
 	}
 
-	fmt.Println("playlistChangeMessage: ", playlistChangeMessage)
-
-	utils.SendJSONMessageMultiCast(playlistChangeMessage, connection.Owner.Name)
+	utils.SendJSONMessageMultiCast(playlistChangeMessage, connection.Owner)
 }
 
 type FileMessage struct {
@@ -181,8 +177,6 @@ func HandleFileMessage(connection roomM.Connection, msg *FileMessage) {
 		fmt.Println("Error: room is nil")
 		return
 	}
-
-	roomName := room.Name
 
 	// desern communication type: raw, hashed, or not sent
 
@@ -236,6 +230,6 @@ func HandleFileMessage(connection roomM.Connection, msg *FileMessage) {
 	fileMessage.Set.File.Size = size
 
 	// send the file message to all connections in the room
-	utils.SendJSONMessageMultiCast(fileMessage, roomName)
+	utils.SendJSONMessageMultiCast(fileMessage, connection.Owner)
 
 }

@@ -27,7 +27,7 @@ func SendChatMessage(message, username string) {
 	chatMessage.Chat.Message = message
 	chatMessage.Chat.Username = username
 
-	utils.SendJSONMessageMultiCast(chatMessage, room.Name)
+	utils.SendJSONMessageMultiCast(chatMessage, room)
 }
 
 func SendMessageToUser(message string, username string, conn net.Conn) {

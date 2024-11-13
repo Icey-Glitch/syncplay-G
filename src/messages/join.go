@@ -130,7 +130,7 @@ type RoomChangeMessage struct {
 func BroadcastUserRoomChangeMessage(connection roomM.Connection, roomName string) {
 	announcement := RoomChangeMessage{}
 	announcement.Set.Room.Name = roomName
-	utils.SendJSONMessageMultiCast(announcement, connection.Owner.Name)
+	utils.SendJSONMessageMultiCast(announcement, connection.Owner)
 }
 
 func broadcastLeaveAnnouncement(connection roomM.Connection) error {
@@ -148,7 +148,7 @@ func broadcastLeaveAnnouncement(connection roomM.Connection) error {
 			},
 		},
 	}
-	utils.SendJSONMessageMultiCast(announcement, connection.Owner.Name)
+	utils.SendJSONMessageMultiCast(announcement, connection.Owner)
 
 	return nil
 }
@@ -168,7 +168,7 @@ func BroadcastJoinAnnouncement(connection roomM.Connection) error {
 			},
 		},
 	}
-	utils.SendJSONMessageMultiCast(announcement, connection.Owner.Name)
+	utils.SendJSONMessageMultiCast(announcement, connection.Owner)
 
 	return nil
 }

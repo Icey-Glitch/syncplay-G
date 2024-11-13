@@ -30,27 +30,12 @@ func SendReadyMessageInit(connection roomM.Connection) {
 
 	room.SetUserReadyState(connection.Username, false, false)
 
-	readyMessage := ReadyMessage{
-		Set: struct {
-			Ready struct {
-				Username          string `json:"username"`
-				IsReady           bool   `json:"isReady"`
-				ManuallyInitiated bool   `json:"manuallyInitiated"`
-			} `json:"ready"`
-		}{
-			Ready: struct {
-				Username          string `json:"username"`
-				IsReady           bool   `json:"isReady"`
-				ManuallyInitiated bool   `json:"manuallyInitiated"`
-			}{
-				Username:          connection.Username,
-				IsReady:           false,
-				ManuallyInitiated: false,
-			},
-		},
-	}
+	readyMessage := ReadyMessage{}
+	readyMessage.Set.Ready.Username = connection.Username
+	readyMessage.Set.Ready.IsReady = false
+	readyMessage.Set.Ready.ManuallyInitiated = false
 
-	utils.SendJSONMessageMultiCast(readyMessage, room.Name)
+	utils.SendJSONMessageMultiCast(readyMessage, room)
 }
 
 func HandleReadyMessage(msg *ClientReadyMessage, usr *roomM.Connection) {
@@ -85,19 +70,14 @@ func readyMessage(msg ClientReadyMessage, connection roomM.Connection) {
 	room.SetUserReadyState(connection.Username, isReady, manuallyInitiated)
 
 	// Send the ready message to all connections in the room
-	readyMessage := map[string]interface{}{
-		"Set": map[string]interface{}{
-			"ready": map[string]interface{}{
-				"username":          connection.Username,
-				"isReady":           isReady,
-				"manuallyInitiated": manuallyInitiated,
-			},
-		},
-	}
+	readyMessage := ReadyMessage{}
+	readyMessage.Set.Ready.Username = connection.Username
+	readyMessage.Set.Ready.IsReady = isReady
+	readyMessage.Set.Ready.ManuallyInitiated = manuallyInitiated
 
-	room.PrintReadyStates()
+	//room.PrintReadyStates()
 
 	// Send the ready message to all connections in the room
 
-	utils.SendJSONMessageMultiCast(readyMessage, room.Name)
+	utils.SendJSONMessageMultiCast(readyMessage, room)
 }

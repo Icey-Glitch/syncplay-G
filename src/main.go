@@ -106,7 +106,7 @@ func handleClient(conn net.Conn) {
 				return
 			}
 			messages.HandleUserLeftMessage(*usr)
-			cm.RemoveConnection(conn)
+			room.RemoveConnection(conn)
 
 			// Stop any associated ManagedEvent
 			em := room.GetStateEventManager()
