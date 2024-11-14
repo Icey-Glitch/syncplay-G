@@ -3,6 +3,7 @@ package roomM
 import (
 	"fmt"
 	"net"
+	"runtime"
 	"sync"
 
 	"github.com/Icey-Glitch/Syncplay-G/mngr/event"
@@ -71,6 +72,11 @@ func GetRoomByConnection(conn net.Conn, rooms map[string]*Room) *Room {
 
 // GetConnectionByConn get connection by conn
 func (r *Room) GetConnectionByConn(conn net.Conn) (user *Connection, err error) {
+	// check if room is nil
+	if r == nil {
+		return nil, fmt.Errorf("room is nil")
+	}
+
 	r.Mutex.RLock()
 	defer r.Mutex.RUnlock()
 
@@ -143,33 +149,46 @@ func (r *Room) connectionExists(connection *Connection) bool {
 }
 
 func (r *Room) RemoveConnection(conn net.Conn) {
-    var connection *Connection
-    index := -1
+	if conn == nil {
+		return
+	}
 
-    // Find the connection index outside the critical section
-    for i, c := range r.Users {
-        if c.Conn == conn {
-            connection = c
-            index = i
-            break
-        }
-    }
+	var connection *Connection
+	index := -1
 
-    if index != -1 {
-        r.Mutex.Lock()
-        defer r.Mutex.Unlock()
-        // Swap the element to remove with the last element
-        r.Users[index] = r.Users[len(r.Users)-1]
-        r.Users[len(r.Users)-1] = nil // avoid memory leak
-        r.Users = r.Users[:len(r.Users)-1]
-    }
+	// Find the connection index outside the critical section
+	for i, c := range r.Users {
+		if c.Conn == conn {
+			connection = c
+			index = i
+			break
+		}
+	}
 
-    if connection != nil {
-        r.removeUserStates(connection)
-        if connection.StateEvent != nil {
-            connection.StateEvent.Stop()
-        }
-    }
+	if index != -1 {
+		r.Mutex.Lock()
+		defer r.Mutex.Unlock()
+		// Check if index is within range before swapping elements
+		if index >= 0 && index < len(r.Users) {
+			r.Users[index] = r.Users[len(r.Users)-1]
+			r.Users[len(r.Users)-1] = nil // avoid memory leak
+			r.Users = r.Users[:len(r.Users)-1]
+		}
+
+		if connection != nil {
+			r.removeUserStates(connection)
+			if connection.StateEvent != nil {
+				connection.StateEvent.Stop()
+			}
+		}
+
+		// Tear down the room if there are no more connections
+		if len(r.Users) == 0 {
+			r.stateEventManager.StopAll()
+			// run GC
+			runtime.GC()
+		}
+	}
 }
 
 // RemoveConnectionByUsername remove connection by username

@@ -108,10 +108,6 @@ func handleClient(conn net.Conn) {
 			messages.HandleUserLeftMessage(*usr)
 			room.RemoveConnection(conn)
 
-			// Stop any associated ManagedEvent
-			em := room.GetStateEventManager()
-			em.StopAll()
-
 			return
 		} else if err != nil {
 			utils.DebugLog("Error decoding message:", err)

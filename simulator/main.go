@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -22,6 +23,65 @@ const (
 	responseWindowSize     = 1000                  // Number of responses to consider
 	maxSlowResponsePercent = 5.0                   // Maximum acceptable percentage of slow responses
 )
+
+var (
+	helloMessages = make([]string, maxClients)
+	stateMessages = make([]string, 3)
+	fileMessages  = make([]string, 10)
+)
+
+func init() {
+	var wg sync.WaitGroup
+
+	rand.Seed(time.Now().UnixNano())
+
+	// Precompute hello messages
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < maxClients; i++ {
+			username := fmt.Sprintf("user%d", i)
+			room := fmt.Sprintf("room%d", rand.Intn(numofRooms))
+			helloMessages[i] = fmt.Sprintf(`{"Hello": {"username": "%s", "version": "1.2.7", "room": {"name": "%s"}}}`+"\r\n", username, room)
+		}
+	}()
+
+	// Precompute state messages
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 3; i++ {
+			stateMsg := StateMessage{}
+			stateMsg.State.Ping.ClientRtt = 0
+			stateMsg.State.Ping.ClientLatencyCalculation = float64(time.Now().UnixNano()) / 1e9
+			stateMsg.State.Ping.LatencyCalculation = stateMsg.State.Ping.ClientLatencyCalculation
+			stateMsg.State.Playstate.Paused = i == 0
+			stateMsg.State.Playstate.Position = float64(i * 100)
+			if i == 1 {
+				stateMsg.State.Playstate.DoSeek = true
+			}
+			stateData, _ := json.Marshal(stateMsg)
+			stateMessages[i] = string(stateData) + "\r\n"
+		}
+	}()
+
+	// Precompute file messages
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 10; i++ {
+			fileMsg := FileMessage{}
+			fileMsg.Set.File.Duration = rand.Float64() * 1000
+			fileMsg.Set.File.Name = generateRandomFileName()
+			fileMsg.Set.File.Size = rand.Intn(1000000)
+			fileData, _ := json.Marshal(fileMsg)
+			fileMessages[i] = string(fileData) + "\r\n"
+		}
+	}()
+
+	// Wait for all precomputations to complete
+	wg.Wait()
+}
 
 type StateMessage struct {
 	State struct {
@@ -58,24 +118,21 @@ func simulateClient(id int, wg *sync.WaitGroup, responseTimes chan<- time.Durati
 
 	conn, err := net.Dial("tcp", serverAddr)
 	if err != nil {
-		fmt.Printf("Client %d: Error connecting to server: %v\n", id, err)
+		// fmt.Printf("Client %d: Error connecting to server: %v\n", id, err)
 		return
 	}
 	defer conn.Close()
 
 	// Send Hello message
-	username := fmt.Sprintf("user%d", id)
-	room := fmt.Sprintf("room%d", rand.Intn(numofRooms))
-	helloMessage := fmt.Sprintf(`{"Hello": {"username": "%s", "version": "1.2.7", "room": {"name": "%s"}}}`+"\r\n", username, room)
-	_, err = conn.Write([]byte(helloMessage))
+	_, err = conn.Write([]byte(helloMessages[id]))
 	if err != nil {
-		fmt.Printf("Client %d: Error sending Hello message: %v\n", id, err)
+		// fmt.Printf("Client %d: Error sending Hello message: %v\n", id, err)
 		return
 	}
 
-	// Start reading server responses
+	// Start reading server responses in the same goroutine
+	reader := bufio.NewReader(conn)
 	go func() {
-		reader := bufio.NewReader(conn)
 		for {
 			start := time.Now()
 			line, err := reader.ReadBytes('\n')
@@ -83,7 +140,10 @@ func simulateClient(id int, wg *sync.WaitGroup, responseTimes chan<- time.Durati
 				return
 			}
 			duration := time.Since(start)
-			responseTimes <- duration
+			select {
+			case responseTimes <- duration:
+			default:
+			}
 			// Handle server messages if necessary
 			var fileMsg FileMessage
 			if err := json.Unmarshal(line, &fileMsg); err == nil {
@@ -94,9 +154,6 @@ func simulateClient(id int, wg *sync.WaitGroup, responseTimes chan<- time.Durati
 
 	// Simulate client actions
 	startTime := time.Now()
-	paused := false
-	position := 0.0
-
 	ticker := time.NewTicker(stateInterval)
 	defer ticker.Stop()
 
@@ -105,48 +162,20 @@ func simulateClient(id int, wg *sync.WaitGroup, responseTimes chan<- time.Durati
 		case <-ticker.C:
 			// Randomly decide to play, pause, or seek
 			action := rand.Intn(3)
-			switch action {
-			case 0:
-				paused = !paused
-			case 1:
-				position = rand.Float64() * 100
-			case 2:
-				if !paused {
-					position += stateInterval.Seconds()
-				}
-			}
-
-			stateMsg := StateMessage{}
-			stateMsg.State.Ping.ClientRtt = 0
-			stateMsg.State.Ping.ClientLatencyCalculation = float64(time.Now().UnixNano()) / 1e9
-			stateMsg.State.Ping.LatencyCalculation = stateMsg.State.Ping.ClientLatencyCalculation
-			stateMsg.State.Playstate.Paused = paused
-			stateMsg.State.Playstate.Position = position
-			if action == 1 {
-				stateMsg.State.Playstate.DoSeek = true
-			}
-
-			stateData, _ := json.Marshal(stateMsg)
-			_, err = conn.Write(append(stateData, '\r', '\n'))
+			_, err = conn.Write([]byte(stateMessages[action]))
 			if err != nil {
-				fmt.Printf("Client %d: Error sending State message: %v\n", id, err)
 				return
 			}
 
 			// Randomly add a file to the room
 			if rand.Intn(10) < 2 {
-				fileMsg := FileMessage{}
-				fileMsg.Set.File.Duration = rand.Float64() * 1000
-				fileMsg.Set.File.Name = generateRandomFileName()
-				fileMsg.Set.File.Size = rand.Intn(1000000)
-
-				fileData, _ := json.Marshal(fileMsg)
-				_, err = conn.Write(append(fileData, '\r', '\n'))
+				_, err = conn.Write([]byte(fileMessages[rand.Intn(10)]))
 				if err != nil {
-					fmt.Printf("Client %d: Error sending File message: %v\n", id, err)
 					return
 				}
 			}
+		default:
+			time.Sleep(10 * time.Millisecond)
 		}
 	}
 }
@@ -156,52 +185,47 @@ func testMaxConcurrentConnections() int {
 	responseTimes := make(chan time.Duration, 100000)
 	defer close(responseTimes)
 
-	var totalResponses int
-	var slowResponses int
-	var responseTimeWindow []time.Duration
-	var maxConcurrentConnections int
-	concurrentClients := 0
-	var mutex sync.Mutex
+	var totalResponses uint64
+	var slowResponses uint64
+	responseTimeWindow := make([]time.Duration, responseWindowSize)
+	var index uint64
 
 	done := make(chan struct{})
 	go func() {
 		for responseTime := range responseTimes {
-			mutex.Lock()
-			totalResponses++
+			atomic.AddUint64(&totalResponses, 1)
 			if responseTime > responseDeadline {
-				slowResponses++
+				atomic.AddUint64(&slowResponses, 1)
 			}
-			responseTimeWindow = append(responseTimeWindow, responseTime)
-			if len(responseTimeWindow) > responseWindowSize {
-				oldest := responseTimeWindow[0]
-				responseTimeWindow = responseTimeWindow[1:]
-				if oldest > responseDeadline {
-					slowResponses--
-				}
-				totalResponses--
+
+			i := atomic.AddUint64(&index, 1) % uint64(responseWindowSize)
+			oldResponseTime := responseTimeWindow[i]
+			responseTimeWindow[i] = responseTime
+
+			if oldResponseTime > responseDeadline {
+				atomic.AddUint64(&slowResponses, ^uint64(0)) // Decrement
 			}
-			mutex.Unlock()
 		}
 		close(done)
 	}()
 
+	concurrentClients := 0
+	maxConcurrentConnections := 0
 	for i := 0; i < maxClients; i++ {
 		wg.Add(1)
 		go simulateClient(i, &wg, responseTimes)
 		concurrentClients++
 		time.Sleep(connectInterval)
 
-		mutex.Lock()
-		if len(responseTimeWindow) >= responseWindowSize {
-			slowResponsePercent := float64(slowResponses) / float64(len(responseTimeWindow)) * 100.0
+		if atomic.LoadUint64(&totalResponses) >= uint64(responseWindowSize) {
+			slowResp := atomic.LoadUint64(&slowResponses)
+			slowResponsePercent := float64(slowResp) / float64(responseWindowSize) * 100.0
 			if slowResponsePercent > maxSlowResponsePercent {
 				fmt.Printf("Exceeded response time threshold at %d concurrent connections\n", concurrentClients)
 				maxConcurrentConnections = concurrentClients - 1
-				mutex.Unlock()
 				break
 			}
 		}
-		mutex.Unlock()
 	}
 
 	wg.Wait()

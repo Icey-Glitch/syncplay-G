@@ -31,6 +31,11 @@
   };
 in
   pkgs.mkShell {
+    nativebuildInputs = with pkgs; [
+      cjson
+      gcc
+      clang
+    ];
     packages = with pkgs; [
       goEnv
       gomod2nix
@@ -38,6 +43,7 @@ in
       vscodiumNew
 
       pprof
+      valgrind
       #perf_data_converter
       graphviz
 
@@ -56,6 +62,10 @@ in
       gopls
       linuxKernel.packages.linux_6_11.perf
       delve
+
+      clang
+      gcc
+      cjson
     ];
 
     # name the shell
