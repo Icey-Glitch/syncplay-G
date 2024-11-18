@@ -51,6 +51,8 @@ in
 
       nil
       tmux
+      tcpdump
+      wireshark
 
       golangci-lint
       go

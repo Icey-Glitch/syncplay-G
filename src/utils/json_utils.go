@@ -103,7 +103,7 @@ func SendJSONMessageMultiCast(message interface{}, room *RoomM.Room) {
 		err := SendData(user.Conn, data)
 		if err != nil {
 			if err.Error() == "broken pipe" {
-				room.RemoveConnection(user.Conn)
+				//room.RemoveConnection(user.Conn)
 				//fmt.Printf("User %s disconnected\n", user.Username)
 				continue
 			}

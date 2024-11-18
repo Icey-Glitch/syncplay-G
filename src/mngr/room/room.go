@@ -149,7 +149,7 @@ func (r *Room) connectionExists(connection *Connection) bool {
 }
 
 func (r *Room) RemoveConnection(conn net.Conn) {
-	if conn == nil {
+	if conn == nil || r == nil || r.Users == nil {
 		return
 	}
 

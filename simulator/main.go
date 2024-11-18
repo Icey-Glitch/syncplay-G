@@ -2,38 +2,38 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/goccy/go-json"
 )
 
 const (
 	serverAddr             = "localhost:8080"
-	maxClients             = 50000                 // Maximum number of clients to simulate
+	maxClients             = 500000                // Maximum number of clients to simulate
 	numofRooms             = 100                   // Number of rooms to simulate
-	connectInterval        = 1 * time.Microsecond  // Interval between client connections
 	clientDuration         = 30 * time.Second      // Duration to keep the client connection open
 	stateInterval          = 5 * time.Second       // Interval between state messages
-	maxFiles               = 5                     // Maximum number of files per room
 	responseDeadline       = 10 * time.Millisecond // Response deadline for AB testing
 	responseWindowSize     = 1000                  // Number of responses to consider
 	maxSlowResponsePercent = 5.0                   // Maximum acceptable percentage of slow responses
+	poolSize               = 1000                  // Size of the connection pool
+	workerPoolSize         = 100                   // Size of the worker pool
 )
 
 var (
 	helloMessages = make([]string, maxClients)
 	stateMessages = make([]string, 3)
 	fileMessages  = make([]string, 10)
+	connPool      = make(chan net.Conn, poolSize)
 )
 
 func init() {
 	var wg sync.WaitGroup
-
-	rand.Seed(time.Now().UnixNano())
 
 	// Precompute hello messages
 	wg.Add(1)
@@ -79,7 +79,19 @@ func init() {
 		}
 	}()
 
-	// Wait for all precomputations to complete
+	// Initialize connection pool
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < poolSize; i++ {
+			conn, err := net.Dial("tcp", serverAddr)
+			if err != nil {
+				continue
+			}
+			connPool <- conn
+		}
+	}()
+
 	wg.Wait()
 }
 
@@ -116,21 +128,16 @@ func generateRandomFileName() string {
 func simulateClient(id int, wg *sync.WaitGroup, responseTimes chan<- time.Duration) {
 	defer wg.Done()
 
-	conn, err := net.Dial("tcp", serverAddr)
-	if err != nil {
-		// fmt.Printf("Client %d: Error connecting to server: %v\n", id, err)
-		return
-	}
-	defer conn.Close()
+	conn := <-connPool
+	defer func() {
+		connPool <- conn
+	}()
 
-	// Send Hello message
-	_, err = conn.Write([]byte(helloMessages[id]))
+	_, err := conn.Write([]byte(helloMessages[id]))
 	if err != nil {
-		// fmt.Printf("Client %d: Error sending Hello message: %v\n", id, err)
 		return
 	}
 
-	// Start reading server responses in the same goroutine
 	reader := bufio.NewReader(conn)
 	go func() {
 		for {
@@ -144,7 +151,6 @@ func simulateClient(id int, wg *sync.WaitGroup, responseTimes chan<- time.Durati
 			case responseTimes <- duration:
 			default:
 			}
-			// Handle server messages if necessary
 			var fileMsg FileMessage
 			if err := json.Unmarshal(line, &fileMsg); err == nil {
 				// Process file message
@@ -152,38 +158,41 @@ func simulateClient(id int, wg *sync.WaitGroup, responseTimes chan<- time.Durati
 		}
 	}()
 
-	// Simulate client actions
-	startTime := time.Now()
 	ticker := time.NewTicker(stateInterval)
 	defer ticker.Stop()
 
-	for time.Since(startTime) < clientDuration {
+	clientDone := time.After(clientDuration)
+
+	for {
 		select {
 		case <-ticker.C:
-			// Randomly decide to play, pause, or seek
 			action := rand.Intn(3)
 			_, err = conn.Write([]byte(stateMessages[action]))
 			if err != nil {
 				return
 			}
-
-			// Randomly add a file to the room
 			if rand.Intn(10) < 2 {
 				_, err = conn.Write([]byte(fileMessages[rand.Intn(10)]))
 				if err != nil {
 					return
 				}
 			}
-		default:
-			time.Sleep(10 * time.Millisecond)
+		case <-clientDone:
+			return
 		}
+	}
+}
+
+func worker(id int, jobs <-chan int, wg *sync.WaitGroup, responseTimes chan<- time.Duration) {
+	defer wg.Done()
+	for job := range jobs {
+		simulateClient(job, wg, responseTimes)
 	}
 }
 
 func testMaxConcurrentConnections() int {
 	var wg sync.WaitGroup
 	responseTimes := make(chan time.Duration, 100000)
-	defer close(responseTimes)
 
 	var totalResponses uint64
 	var slowResponses uint64
@@ -203,19 +212,23 @@ func testMaxConcurrentConnections() int {
 			responseTimeWindow[i] = responseTime
 
 			if oldResponseTime > responseDeadline {
-				atomic.AddUint64(&slowResponses, ^uint64(0)) // Decrement
+				atomic.AddUint64(&slowResponses, ^uint64(0))
 			}
 		}
 		close(done)
 	}()
 
+	jobs := make(chan int, maxClients)
+	for w := 0; w < workerPoolSize; w++ {
+		wg.Add(1)
+		go worker(w, jobs, &wg, responseTimes)
+	}
+
 	concurrentClients := 0
 	maxConcurrentConnections := 0
 	for i := 0; i < maxClients; i++ {
-		wg.Add(1)
-		go simulateClient(i, &wg, responseTimes)
+		jobs <- i
 		concurrentClients++
-		time.Sleep(connectInterval)
 
 		if atomic.LoadUint64(&totalResponses) >= uint64(responseWindowSize) {
 			slowResp := atomic.LoadUint64(&slowResponses)
@@ -227,6 +240,7 @@ func testMaxConcurrentConnections() int {
 			}
 		}
 	}
+	close(jobs)
 
 	wg.Wait()
 	close(responseTimes)
